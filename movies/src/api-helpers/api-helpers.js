@@ -51,3 +51,29 @@ export const getMovieDetails = async (id) => {
     const resData = await res.data;
     return resData;
 };
+export const addMovie = async (data) => {
+    try {
+        const res = await axios.post("/movie/add", data, {
+            headers: {
+                // Ensure this key matches what you saved in Admin Login
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+        });
+
+        // If success
+        if (res.status === 201) {
+            return res.data;
+        }
+    } catch (err) {
+        // 🛑 THIS IS WHERE WE DEBUG THE 400 ERROR
+        console.error("Error inside addMovie Helper:", err);
+
+        // Check if the server sent a specific message
+        if (err.response) {
+            console.log("Server responded with:", err.response.data);
+            // This will print: { message: "No image provided" } or { message: "Token Not Found" }
+        }
+
+        return null; // Return null so the component knows it failed
+    }
+};

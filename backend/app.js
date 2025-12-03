@@ -6,6 +6,7 @@ import userRouter from "./routes/user-routes.js";
 import adminRouter from "./routes/admin-routes.js";
 import movieRouter from "./routes/movie-routes.js";
 import bookingRouter from "./routes/booking-routes.js";
+import paymentRouter from './routes/payment-routes.js';
 dotenv.config();
 const app = express();
 //middlewares
@@ -14,10 +15,12 @@ app.use(cors());
 app.use("/user", userRouter);
 app.use("/admin", adminRouter);
 app.use("/movie", movieRouter);
-app.use("/booking", bookingRouter );
+app.use('/uploads', express.static('uploads'));
+app.use("/booking", bookingRouter);
+app.use("/payment", paymentRouter);
 mongoose
     .connect(
-        `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+        `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/appName=Cluster0`
         // `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
     )
     .then(() =>

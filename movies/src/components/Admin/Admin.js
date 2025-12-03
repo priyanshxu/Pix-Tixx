@@ -1,29 +1,81 @@
-import React from 'react'
-import AuthForm from '../Auth/AuthForm'
-import { sendAdminAuthRequest } from '../../api-helpers/api-helpers';
-import { useDispatch } from 'react-redux';
-import { adminActions } from '../../store';
+import React, { useState } from 'react';
+import { Box, Button, TextField, Typography, Paper } from '@mui/material';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
-const Admin = () => {
-  const dispatch = useDispatch();
-  const onResReceived = (data) => {
-    console.log(data);
-    dispatch(adminActions.login())
-    localStorage.setItem("adminId", data.id);
-    localStorage.setItem("token", data.token);
+const AdminLogin = () => {
+  const navigate = useNavigate();
+  const [inputs, setInputs] = useState({ email: "", password: "" });
 
+  const handleChange = (e) => {
+    setInputs((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
-  
-  const getData = (data) => {
-    console.log(data);
-    sendAdminAuthRequest(data.inputs)
-    .then(onResReceived)
-    .catch((err)=> console.log(err));
-    
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Assuming your backend has this route
+      const res = await axios.post("http://localhost:5000/admin/login", inputs);
+
+      if (res.data.token) {
+        localStorage.setItem("adminToken", res.data.token);
+        localStorage.setItem("adminId", res.data.id);
+        navigate("/admin/dashboard");
+      }
+    } catch (err) {
+      alert("Invalid Admin Credentials");
+      console.error(err);
+    }
   };
+
   return (
-    <div><AuthForm onSubmit = {getData} isAdmin={true}/></div>
-  )
-}
+    <Box
+      width="100%"
+      height="100vh"
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      sx={{ background: "linear-gradient(to right, #141e30, #243b55)" }}
+    >
+      <Paper elevation={10} sx={{ padding: 4, width: 350, borderRadius: 3, textAlign: 'center' }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom color="#e50914">
+          Pix-Tix Admin
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          Authorized Personnel Only
+        </Typography>
 
-export default Admin
+        <form onSubmit={handleSubmit}>
+          <TextField
+            fullWidth
+            label="Email"
+            name="email"
+            value={inputs.email}
+            onChange={handleChange}
+            margin="normal"
+          />
+          <TextField
+            fullWidth
+            label="Password"
+            type="password"
+            name="password"
+            value={inputs.password}
+            onChange={handleChange}
+            margin="normal"
+          />
+
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{ mt: 3, bgcolor: "#e50914", fontWeight: "bold" }}
+          >
+            Access Dashboard
+          </Button>
+        </form>
+      </Paper>
+    </Box>
+  );
+};
+
+export default AdminLogin;

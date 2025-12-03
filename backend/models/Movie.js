@@ -28,6 +28,16 @@ const movieSchema = new mongoose.Schema({
         ref : "Admin",
         required: true,
     },
+    seatConfiguration: {
+        type: [ 
+            {
+                rowLabel: String,
+                seats: [Number],
+                price: Number
+            }
+        ],
+        required: true
+    }
 });
 
 export default mongoose.model("Movie",movieSchema);
