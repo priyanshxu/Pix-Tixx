@@ -1,18 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
-import Seatmap from './Seatmap';
+import SeatMap from './Seatmap';
+// Import UI Tools
+import { GlobalLoader, CustomSnackbar, SuccessDialog } from '../Shared/UI/Feedback';
 
 const Booking = () => {
   const [inputs, setInputs] = useState({ date: "" });
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
 
+  // UI States
+  const [loading, setLoading] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ open: false, message: "", severity: "info" });
+  const [successData, setSuccessData] = useState({ open: false, ticketId: null });
+
   const id = useParams().id;
   const movieId = id;
   const userId = localStorage.getItem("userId");
 
-  // Load Razorpay SDK
+  const showAlert = (message, severity = "error") => setAlertInfo({ open: true, message, severity });
+
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -39,30 +47,33 @@ const Booking = () => {
   const handleBooking = async (e) => {
     e.preventDefault();
 
-    if (!userId) return alert("Please Login first!");
-    if (!inputs.date) return alert("Please select a date first");
-    if (selectedSeats.length === 0) return alert("Please select at least one seat");
+    if (!userId) return showAlert("Please Login first!", "warning");
+    if (!inputs.date) return showAlert("Please select a date first", "warning");
+    if (selectedSeats.length === 0) return showAlert("Please select at least one seat", "warning");
 
+    setLoading(true); // Start Loading
     const res = await loadRazorpayScript();
-    if (!res) return alert("Razorpay SDK failed to load.");
+
+    if (!res) {
+      setLoading(false);
+      return showAlert("Razorpay SDK failed to load.", "error");
+    }
 
     try {
-      // 1. Create Order
       const orderUrl = "http://localhost:5000/payment/create-order";
       const { data: order } = await axios.post(orderUrl, { amount: totalPrice });
 
-      // 2. Initialize Options
       const options = {
-        // ⚠️ CRITICAL: THIS KEY MUST MATCH YOUR BACKEND .ENV KEY_ID
-        key: "rzp_test_YOUR_ACTUAL_KEY_HERE",
+        key: "rzp_test_RmpXXAam4cVGMK",
         amount: order.amount,
         currency: order.currency,
         name: "Pix-Tix Cinema",
         description: `Booking for ${selectedSeats.length} tickets`,
         order_id: order.id,
         handler: async function (response) {
+          // Keep loader on while verifying
+          setLoading(true);
           try {
-            console.log("Payment Success. Verifying with Backend...");
             const bookingUrl = "http://localhost:5000/booking";
             const bookingData = {
               movie: movieId,
@@ -72,40 +83,63 @@ const Booking = () => {
             };
 
             const res = await axios.post(bookingUrl, bookingData);
-            console.log("Backend Response:", res.data); // Debug Log
 
-            // 👇 SAFETY CHECK: Ensure booking exists before reading _id
             if (res.data && res.data.booking) {
-              const newBookingId = res.data.booking._id;
-              alert("Payment Successful! Generating Ticket...");
-              window.location.href = `/user/ticket/${newBookingId}`;
+              // Show Success Dialog instead of Alert
+              setSuccessData({ open: true, ticketId: res.data.booking._id });
             } else {
-              // Handle unexpected success response
-              console.error("Missing booking object:", res.data);
-              alert("Payment received, but ticket data is missing. Check your profile.");
-              window.location.href = "/user"; // Fallback redirect
+              showAlert("Payment received, but ticket data is missing.", "warning");
+              window.location.href = "/user";
             }
-
           } catch (err) {
             console.error("Booking API Error:", err);
-            const msg = err.response?.data?.message || "Booking creation failed";
-            alert(`Error: ${msg}`);
+            showAlert("Payment successful, but server verification failed.", "error");
+          } finally {
+            setLoading(false);
           }
         },
         theme: { color: "#e50914" },
+        modal: {
+          ondismiss: function () {
+            setLoading(false); // Stop loading if they close the popup
+          }
+        }
       };
 
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
+      // Note: We don't set loading false here because the Razorpay modal is now open.
 
     } catch (err) {
       console.log("Payment Init Error:", err);
-      alert("Error initiating payment. Check console.");
+      showAlert("Error initiating payment. Check console.", "error");
+      setLoading(false);
     }
+  };
+
+  const handleSuccessClose = () => {
+    // Redirect to Ticket on Dialog Close
+    window.location.href = `/user/ticket/${successData.ticketId}`;
   };
 
   return (
     <div style={styles.container}>
+      {/* Feedback Components */}
+      <GlobalLoader open={loading} />
+      <CustomSnackbar
+        open={alertInfo.open}
+        message={alertInfo.message}
+        severity={alertInfo.severity}
+        onClose={() => setAlertInfo({ ...alertInfo, open: false })}
+      />
+      <SuccessDialog
+        open={successData.open}
+        title="Booking Confirmed!"
+        message="Your seats have been successfully reserved. Enjoy the movie!"
+        btnText="View Ticket"
+        onConfirm={handleSuccessClose}
+      />
+
       <h2>Book Tickets</h2>
       <form onSubmit={handleBooking} style={styles.form}>
         <div style={styles.inputGroup}>
@@ -114,7 +148,7 @@ const Booking = () => {
         </div>
 
         {inputs.date && movieId ? (
-          <Seatmap movieId={movieId} selectedDate={inputs.date} onSeatSelect={handleSeatData} />
+          <SeatMap movieId={movieId} selectedDate={inputs.date} onSeatSelect={handleSeatData} />
         ) : (
           <p style={{ textAlign: 'center', color: '#666' }}>Select a date to view available seats.</p>
         )}
@@ -141,7 +175,7 @@ const styles = {
   form: { display: 'flex', flexDirection: 'column', gap: '20px' },
   inputGroup: { display: 'flex', flexDirection: 'column', textAlign: 'left', maxWidth: '300px', margin: '0 auto' },
   input: { padding: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc' },
-  button: { padding: '15px', backgroundColor: '#e50914', color: 'white', border: 'none', borderRadius: '4px', fontSize: '18px', fontWeight: 'bold', width: '100%' },
+  button: { padding: '15px', backgroundColor: '#e50914', color: 'white', border: 'none', borderRadius: '4px', fontSize: '18px', fontWeight: 'bold', width: '100%', cursor: 'pointer' },
   summary: { textAlign: 'center', padding: '15px', backgroundColor: '#f1f1f1', borderRadius: '8px' },
   totalPrice: { fontSize: '20px', fontWeight: 'bold', color: '#2c3e50', margin: '10px 0 0 0' }
 };

@@ -1,23 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, Card, CardContent, Grid } from '@mui/material';
+import { Box, Typography, Button, Card, CardContent, CardActions, Grid, IconButton } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const [movies, setMovies] = useState([]);
 
-    useEffect(() => {
-        // Check Auth
-        if (!localStorage.getItem("adminToken")) {
-            navigate("/admin");
-        }
-        // Fetch Movies
+    const fetchMovies = () => {
         axios.get("http://localhost:5000/movie")
             .then(res => setMovies(res.data.movies))
             .catch(err => console.log(err));
+    };
+
+    useEffect(() => {
+        if (!localStorage.getItem("adminToken")) navigate("/admin");
+        fetchMovies();
     }, [navigate]);
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this movie?")) return;
+
+        try {
+            await axios.delete(`http://localhost:5000/movie/${id}`);
+            fetchMovies(); // Refresh list
+            alert("Movie Deleted");
+        } catch (err) {
+            alert("Error deleting movie");
+        }
+    };
 
     return (
         <Box padding={4} bgcolor="#f4f6f8" minHeight="100vh">
@@ -33,30 +47,34 @@ const AdminDashboard = () => {
                 </Button>
             </Box>
 
-            {/* Stats Overview */}
-            <Grid container spacing={3} mb={4}>
-                <Grid item xs={12} md={4}>
-                    <Card sx={{ bgcolor: "#222", color: "white" }}>
-                        <CardContent>
-                            <Typography variant="h6">Active Movies</Typography>
-                            <Typography variant="h3">{movies.length}</Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                {/* You can add more cards for Total Bookings, Revenue, etc */}
-            </Grid>
-
             <Typography variant="h5" mb={2}>Movie Management</Typography>
             <Grid container spacing={2}>
                 {movies.map((movie) => (
                     <Grid item xs={12} sm={6} md={3} key={movie._id}>
-                        <Card>
-                            <img src={movie.posterUrl} alt={movie.title} style={{ width: "100%", height: "200px", objectFit: "cover" }} />
-                            <CardContent>
+                        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <img src={movie.posterUrl} alt={movie.title} style={{ width: "100%", height: "250px", objectFit: "cover" }} />
+                            <CardContent sx={{ flexGrow: 1 }}>
                                 <Typography variant="h6" noWrap>{movie.title}</Typography>
-                                <Typography variant="caption">Release: {new Date(movie.releaseDate).toLocaleDateString()}</Typography>
-                                {/* Add Edit/Delete Buttons here if needed */}
+                                <Typography variant="caption" color="textSecondary">
+                                    {new Date(movie.releaseDate).toLocaleDateString()}
+                                </Typography>
                             </CardContent>
+                            <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                                <Button
+                                    size="small"
+                                    startIcon={<EditIcon />}
+                                    onClick={() => navigate(`/admin/edit/${movie._id}`)}
+                                    sx={{ color: "#2b2d42" }}
+                                >
+                                    Edit
+                                </Button>
+                                <IconButton
+                                    color="error"
+                                    onClick={() => handleDelete(movie._id)}
+                                >
+                                    <DeleteIcon />
+                                </IconButton>
+                            </CardActions>
                         </Card>
                     </Grid>
                 ))}

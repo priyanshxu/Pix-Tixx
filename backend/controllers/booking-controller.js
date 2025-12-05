@@ -2,7 +2,11 @@ import mongoose from "mongoose";
 import Bookings from "../models/Bookings.js";
 import Movie from "../models/Movie.js";
 import User from "../models/User.js";
+// Import the utilities we created earlier
+import { generateTicketPDF } from "../utils/generateTicket.js";
+import { sendTicketEmail } from "../utils/sendMail.js";
 
+// --- 1. NEW BOOKING (Updated with Email & PDF Logic) ---
 export const newBooking = async (req, res, next) => {
     const { movie, date, seatNumber, user } = req.body;
 
@@ -12,28 +16,25 @@ export const newBooking = async (req, res, next) => {
         existingMovie = await Movie.findById(movie);
         existingUser = await User.findById(user);
     } catch (err) {
-        console.log(err);
         return res.status(500).json({ message: "Database Error", error: err });
     }
 
     if (!existingMovie) {
-        return res.status(404).json({ message: "Movie not found with the given Id" });
+        return res.status(404).json({ message: "Movie not found" });
     }
     if (!existingUser) {
-        return res.status(404).json({ message: "User not found with given ID" });
+        return res.status(404).json({ message: "User not found" });
     }
 
     let booking;
     try {
-        // Create the booking instance
         booking = new Bookings({
             movie,
             date: new Date(`${date}`),
             user,
-            seatNumber, // This is now an array
+            seatNumber, // Array of seats
         });
 
-        // Start Transaction
         const session = await mongoose.startSession();
         session.startTransaction();
 
@@ -45,9 +46,35 @@ export const newBooking = async (req, res, next) => {
         await booking.save({ session });
 
         await session.commitTransaction();
+
+        // --- START EMAIL LOGIC ---
+        console.log("Booking saved. Generating Ticket..."); // LOG 1
+
+        try {
+            // 1. Generate PDF Buffer
+            const pdfBuffer = await generateTicketPDF(booking, existingMovie, existingUser);
+            console.log("PDF Generated."); // LOG 2
+
+            // 2. Prepare Email Details
+            const emailDetails = {
+                movieTitle: existingMovie.title,
+                date: booking.date,
+                seats: booking.seatNumber,
+                bookingId: booking._id.toString().slice(-6).toUpperCase()
+            };
+
+            // 3. Send Email
+            await sendTicketEmail(existingUser.email, emailDetails, pdfBuffer);
+            console.log(`Email sent successfully to ${existingUser.email}`); // LOG 3
+
+        } catch (emailErr) {
+            console.error("FAILED to send ticket email:", emailErr);
+            // We do NOT stop the request here because the booking is already real/saved.
+        }
+        // --- END EMAIL LOGIC ---
+
     } catch (err) {
         console.log(err);
-        // 👇 CRITICAL FIX: Send error response instead of just logging
         return res.status(500).json({ message: "Booking Failed", error: err });
     }
 
@@ -57,11 +84,14 @@ export const newBooking = async (req, res, next) => {
 
     return res.status(201).json({ booking });
 };
+
+// --- 2. GET BOOKING BY ID (Fixed Missing Poster) ---
 export const getBokingById = async (req, res, next) => {
     const id = req.params.id;
     let booking;
     try {
-        booking = await Bookings.findById(id).populate("movie"); // Added populate for ticket view
+        // 👇 CRITICAL FIX: .populate("movie") loads the Title & PosterUrl
+        booking = await Bookings.findById(id).populate("movie");
     } catch (err) {
         console.log(err);
     }

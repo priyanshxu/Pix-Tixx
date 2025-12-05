@@ -15,7 +15,17 @@ const userSchema = new Schema({
         required: true,
         minlength: 6,
     },
-    bookings:[{type: mongoose.Types.ObjectId, ref: "Booking"}]
+    bookings: [{ type: mongoose.Types.ObjectId, ref: "Booking" }],
+    otp: {
+        type: String,
+    },
+    otpExpires: {
+        type: Date,
+    },
+    isVerified: {
+        type: Boolean,
+        default: false, // User is not active until OTP is verified
+    }
 })
 
 export default mongoose.model("User", userSchema);

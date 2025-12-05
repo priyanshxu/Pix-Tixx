@@ -9,7 +9,9 @@ import UserProfile from "./components/Profile/UserProfile.js";
 import Ticket from "./components/Profile/Ticket.js";
 import AdminLogin from "./components/Admin/Admin";
 import Booking from "./components/Bookings/Booking.js";
+import MoviePage from "./components/Movies/Moviepage.js";
 import AddMovie from "./components/Movies/AddMovie.js";
+import EditMovie from "./components/Admin/EditMovie.js";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 import { adminActions, userActions } from "./store";
@@ -42,6 +44,8 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/user" element={<UserProfile />} />
           <Route path="/user/ticket/:id" element={<Ticket />} />
+          <Route path="/admin/edit/:id" element={<EditMovie />} />
+          <Route path="/movie/:id" element={<MoviePage />} />
         </Routes>
       </section>
     </div>

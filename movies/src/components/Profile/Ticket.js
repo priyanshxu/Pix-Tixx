@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Box, Typography, Button, Paper, Divider, CircularProgress } from "@mui/material";
+import { Box, Typography, Button, Paper, CircularProgress } from "@mui/material";
 import DownloadIcon from '@mui/icons-material/Download';
 import HomeIcon from '@mui/icons-material/Home';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
