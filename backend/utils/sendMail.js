@@ -11,6 +11,37 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// --- NEW GENERIC SEND EMAIL UTILITY ---
+export const sendEmail = async (mailOptions) => {
+    mailOptions.from = mailOptions.from || '"Pix-Tix Support" <support@pixtix.com>';
+    return transporter.sendMail(mailOptions);
+};
+
+// --- NEW RESALE NOTIFICATION ---
+export const sendResaleNotification = async (sellerEmail, sellerName, bookingDetails, payout) => {
+    const mailOptions = {
+        to: sellerEmail,
+        subject: `Success! Your Ticket for ${bookingDetails.movieTitle} has been Resold 💰`,
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #4CAF50; max-width: 600px; margin: auto;">
+                <h2 style="color: #4CAF50;">Ticket Sold! Congratulations, ${sellerName}!</h2>
+                <p>Your ticket for <strong>${bookingDetails.movieTitle}</strong> has been successfully purchased on the Resale Marketplace.</p>
+                
+                <div style="background: #e6ffe6; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #4CAF50;">
+                    <p style="font-size: 1.1em; color: #000;">Your wallet has been credited with:</p>
+                    <h3 style="color: #4CAF50; margin: 5px 0;">₹${payout}</h3>
+                </div>
+
+                <p>You can use this balance for future bookings or initiate a withdrawal from your Profile page.</p>
+                <p>Thank you for using Pix-Tix!</p>
+            </div>
+        `,
+    };
+    return sendEmail(mailOptions);
+};
+// ------------------------------------
+
+
 export const sendOtpEmail = async (email, otp) => {
     const mailOptions = {
         from: '"Pix-Tix Security" <noreply@pixtix.com>',
@@ -46,7 +77,16 @@ export const sendWelcomeEmail = async (email, name) => {
     };
     return transporter.sendMail(mailOptions);
 };
+
+// --- FIX: TICKET EMAIL DATE FORMAT ---
 export const sendTicketEmail = async (email, bookingDetails, pdfBuffer) => {
+    const showDateTime = new Date(bookingDetails.date);
+    // Ensure date displays correctly in email client (e.g., Nov 12, 2025 at 07:00 PM)
+    const displayDateTime = showDateTime.toLocaleString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+
     const mailOptions = {
         from: '"Pix-Tix Box Office" <tickets@pixtix.com>',
         to: email,
@@ -58,7 +98,8 @@ export const sendTicketEmail = async (email, bookingDetails, pdfBuffer) => {
                 <p>Your tickets for <strong>${bookingDetails.movieTitle}</strong> have been successfully booked.</p>
                 
                 <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Date:</strong> ${new Date(bookingDetails.date).toDateString()}</p>
+                    <p><strong>Show Time:</strong> ${displayDateTime}</p>
+                    <p><strong>Location:</strong> ${bookingDetails.theatre}</p>
                     <p><strong>Seats:</strong> ${bookingDetails.seats.join(", ")}</p>
                     <p><strong>Booking ID:</strong> ${bookingDetails.bookingId}</p>
                 </div>
@@ -72,7 +113,7 @@ export const sendTicketEmail = async (email, bookingDetails, pdfBuffer) => {
         attachments: [
             {
                 filename: `PixTix-Ticket-${bookingDetails.bookingId}.pdf`,
-                content: pdfBuffer, // The PDF buffer we generated
+                content: pdfBuffer,
                 contentType: 'application/pdf'
             }
         ]

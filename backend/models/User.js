@@ -24,7 +24,11 @@ const userSchema = new Schema({
     },
     isVerified: {
         type: Boolean,
-        default: false, // User is not active until OTP is verified
+        default: false,
+    },
+    walletBalance: {
+        type: Number,
+        default: 0,
     }
 })
 

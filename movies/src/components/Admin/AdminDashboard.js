@@ -45,6 +45,13 @@ const AdminDashboard = () => {
                 >
                     Add New Movie
                 </Button>
+                <Button
+                    variant="outlined"
+                    onClick={() => navigate("/admin/config")}
+                    sx={{ mr: 2 }}
+                >
+                    Manage Shows & Theatres
+                </Button>
             </Box>
 
             <Typography variant="h5" mb={2}>Movie Management</Typography>
@@ -63,7 +70,7 @@ const AdminDashboard = () => {
                                 <Button
                                     size="small"
                                     startIcon={<EditIcon />}
-                                    onClick={() => navigate(`/admin/edit/${movie._id}`)}
+                                    onClick={() => navigate(`/admin/config/edit/${movie._id}`)}
                                     sx={{ color: "#2b2d42" }}
                                 >
                                     Edit

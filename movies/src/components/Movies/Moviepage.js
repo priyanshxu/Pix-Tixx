@@ -67,7 +67,7 @@ const MoviePage = () => {
                                 size="large"
                                 startIcon={<ConfirmationNumberIcon />}
                                 sx={{ bgcolor: "#e50914", fontWeight: "bold", fontSize: "1.2rem", px: 4 }}
-                                onClick={() => navigate(`/booking/${movie._id}`)}
+                                onClick={() => navigate(`/movie/${id}/shows`)}
                             >
                                 Book Tickets
                             </Button>

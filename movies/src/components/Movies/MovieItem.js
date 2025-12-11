@@ -49,7 +49,7 @@ const MovieItem = ({ title, releaseDate, posterUrl, id }) => {
         <Button
           variant="contained"
           LinkComponent={Link}
-          to={`/booking/${id}`}
+          to={`/movie/${id}/shows`}
           fullWidth
           sx={{
             backgroundColor: "#e50914",

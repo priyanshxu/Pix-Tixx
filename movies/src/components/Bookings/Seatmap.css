@@ -4,58 +4,71 @@
     align-items: center;
     margin-top: 20px;
     user-select: none;
+    background-color: #111;
+    /* Dark background */
+    padding: 20px 10px;
+    border-radius: 8px;
 }
 
 .screen {
-    width: 60%;
-    height: 40px;
-    background: linear-gradient(to bottom, #e0e0e0, transparent);
-    transform: perspective(400px) rotateX(-10deg);
-    margin-bottom: 40px;
+    width: 80%;
+    height: 50px;
+    background: #e50914;
+    /* Red Screen */
+    transform: perspective(600px) rotateX(-15deg);
+    margin-bottom: 50px;
     text-align: center;
-    color: #999;
-    font-size: 12px;
-    letter-spacing: 3px;
-    box-shadow: 0 15px 10px -10px rgba(0, 0, 0, 0.1);
+    color: white;
+    font-size: 14px;
+    letter-spacing: 5px;
+    line-height: 50px;
+    border-radius: 5px;
+    box-shadow: 0 15px 15px -10px rgba(229, 9, 20, 0.4);
+    font-weight: bold;
 }
 
 .seats-grid {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 .seat-row {
     display: flex;
-    justify-content: center;
     align-items: center;
+    min-width: fit-content;
+    /* Prevent rows from collapsing */
 }
 
 .row-label {
     width: 30px;
     font-weight: bold;
-    color: #555;
-    margin-right: 10px;
+    color: #ccc;
+    margin-right: 15px;
+    font-size: 14px;
 }
 
 .seat {
-    width: 30px;
-    height: 30px;
-    margin: 0 4px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    border: none;
-    background-color: #fff;
-    border: 1px solid #ccc;
+    width: 35px;
+    height: 35px;
+    margin: 0 3px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background-color: #333;
+    /* Default available seat */
+    color: white;
     cursor: pointer;
-    transition: 0.2s;
+    transition: all 0.2s;
     font-size: 10px;
-    color: #333;
+    font-weight: 500;
 }
 
 .seat:hover:not(:disabled) {
-    background-color: #eee;
-    transform: scale(1.1);
+    background-color: #555;
+    transform: scale(1.05);
+    border-color: #e50914;
 }
 
 .seat.selected {
@@ -63,27 +76,30 @@
     /* Pix-Tix Red */
     border-color: #e50914;
     color: white;
-    box-shadow: 0 0 8px rgba(229, 9, 20, 0.4);
+    box-shadow: 0 0 10px rgba(229, 9, 20, 0.6);
 }
 
 .seat.booked {
-    background-color: #444;
-    border-color: #333;
-    color: #777;
+    background-color: #000;
+    border-color: #222;
+    color: #444;
     cursor: not-allowed;
+    text-decoration: line-through;
 }
 
 .seat-gap {
-    width: 30px;
+    width: 15px;
+    /* Smaller gap for aesthetics */
     margin: 0 4px;
+    height: 35px;
 }
 
 .legend {
     display: flex;
-    gap: 20px;
+    gap: 30px;
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #222;
 }
 
 .legend .item {
@@ -91,5 +107,11 @@
     align-items: center;
     gap: 8px;
     font-size: 14px;
-    color: #555;
+    color: #ccc;
+}
+
+.legend .item .seat {
+    width: 20px;
+    height: 20px;
+    margin: 0;
 }

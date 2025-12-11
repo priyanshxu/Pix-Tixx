@@ -2,60 +2,95 @@ import PDFDocument from "pdfkit";
 
 export const generateTicketPDF = (booking, movie, user) => {
     return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: "A4", margin: 50 });
+        const doc = new PDFDocument({ size: "A4", margin: 30 });
         let buffers = [];
 
         doc.on("data", (chunk) => buffers.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(buffers)));
         doc.on("error", (err) => reject(err));
 
+        // Get formatted date and time safely
+        const showDateTime = new Date(booking.date);
+        const formattedDate = showDateTime.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedTime = showDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+        // --- Get Location/Screen (Requires deep population, assuming show details are available) ---
+        // This relies on booking being populated with show, screen, and theatre
+        const theatreName = booking.show?.screen?.theatre?.name || "Cinema Location";
+        const screenName = booking.show?.screen?.name || "Screen N/A";
+        const locationText = `${theatreName}, ${screenName}`;
+
+        const price = booking.price ? `₹${booking.price.toFixed(2)}` : "N/A";
+
+
         // --- PDF DESIGN ---
 
-        // 1. Header / Logo Area
-        doc.fillColor("#e50914").fontSize(20).text("PIX-TIX CINEMAS", { align: "center" });
-        doc.moveDown();
-        doc.fillColor("#333").fontSize(12).text("Your Ticket Confirmation", { align: "center" });
-        doc.moveDown(2);
+        // 1. Title Bar
+        doc.fillColor("#e50914").fontSize(24).font("Helvetica-Bold")
+            .text("PIX-TIX E-TICKET", 30, 40, { align: "left" });
 
-        // 2. Ticket Box (Rectangle)
-        doc.rect(50, 100, 500, 200).fillAndStroke("#f9f9f9", "#333");
+        doc.fillColor("#666").fontSize(10).font("Helvetica")
+            .text(`Booking ID: ${booking._id.toString().slice(-8).toUpperCase()}`, 30, 70);
 
-        // 3. Movie Title
-        doc.fillColor("#000").fontSize(18).font("Helvetica-Bold")
-            .text(movie.title, 70, 120);
+        doc.moveDown(3);
 
-        // 4. Booking Details
-        doc.fontSize(12).font("Helvetica").fillColor("#555");
+        // 2. Main Ticket Box (Dark Header + White Body)
+        const boxY = 120;
+        const boxHeight = 250;
 
-        // Left Column
-        doc.text("Date:", 70, 160);
-        doc.text("Time:", 70, 180);
-        doc.text("Location:", 70, 200);
+        // Dark Header Area (Movie Info)
+        doc.rect(30, boxY, 550, 70).fill("#222");
 
-        doc.font("Helvetica-Bold").fillColor("#000");
-        doc.text(new Date(booking.date).toLocaleDateString(), 150, 160);
-        doc.text("07:00 PM", 150, 180); // Static time for now
-        doc.text("Pix-Tix Downtown, Audi 3", 150, 200);
+        // White Body Area (Details)
+        doc.rect(30, boxY + 70, 550, boxHeight - 70).fill("#ffffff");
 
-        // Right Column (Seats)
-        doc.font("Helvetica").fillColor("#555");
-        doc.text("Booking ID:", 300, 160);
-        doc.text("Seats:", 300, 180);
-        doc.text("Total Price:", 300, 220);
+        // 3. Movie Title & Poster Area (Inside Dark Header)
+        doc.fillColor("#fff").fontSize(20).font("Helvetica-Bold")
+            .text(movie.title, 150, boxY + 20, { width: 400 }); // Adjusted position
 
-        doc.font("Helvetica-Bold").fillColor("#000");
-        doc.text(booking._id.toString().slice(-6).toUpperCase(), 400, 160);
+        doc.fillColor("#aaa").fontSize(12).font("Helvetica")
+            .text(`Booked by: ${user.name}`, 150, boxY + 45);
 
-        // Format seats nicely
-        doc.fillColor("#e50914").text(booking.seatNumber.join(", "), 400, 180);
+        // Placeholder for Movie Poster (Since we cannot use external URLs)
+        doc.rect(50, boxY + 15, 80, 40).fill("#e50914");
+        doc.fillColor("#fff").fontSize(10).text("Poster", 55, boxY + 30);
 
-        // 5. Footer / Cut Line
-        doc.lineWidth(1).dash(5, { space: 10 }).strokeColor("#ccc");
-        doc.moveTo(50, 320).lineTo(550, 320).stroke();
+        // 4. Booking Details (Inside White Body)
+        let currentY = boxY + 95;
+        const col1X = 50;
+        const col2X = 300;
 
-        doc.fontSize(10).fillColor("#777").text(
-            "Please show this ticket at the counter or scan the QR code at the entrance.",
-            50, 340, { align: "center" }
+        const drawDetail = (label, value, x) => {
+            doc.fillColor("#555").fontSize(10).font("Helvetica")
+                .text(label, x, currentY);
+            doc.fillColor("#000").fontSize(14).font("Helvetica-Bold")
+                .text(value, x, currentY + 15);
+        };
+
+        // Row 1: Date & Time
+        drawDetail("DATE", formattedDate, col1X);
+        drawDetail("TIME", formattedTime, col2X);
+        currentY += 50;
+
+        // Row 2: Location & Screen
+        drawDetail("LOCATION", locationText, col1X);
+        drawDetail("TOTAL PAID", price, col2X);
+        currentY += 50;
+
+        // Row 3: Seats
+        doc.fillColor("#555").fontSize(10).font("Helvetica").text("SEATS", col1X, currentY);
+        doc.fillColor("#e50914").fontSize(14).font("Helvetica-Bold")
+            .text(booking.seatNumber.join(", "), col1X, currentY + 15);
+        currentY += 50;
+
+        // 5. QR Code Area (Placeholder)
+        doc.rect(30, currentY + 30, 550, 80).fill("#f0f0f0");
+        doc.fillColor("#333").fontSize(14).font("Helvetica-Bold")
+            .text("QR CODE AREA", 0, currentY + 60, { align: "center" });
+
+        doc.fillColor("#777").fontSize(10).text(
+            "Scan this code at the entrance. This ticket is invalid if resold.",
+            0, currentY + 100, { align: "center" }
         );
 
         doc.end();

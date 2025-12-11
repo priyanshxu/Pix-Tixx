@@ -2,51 +2,51 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Box, Typography } from "@mui/material";
 import "./Seatmap.css";
+// Note: Assuming the CSS is in src/components/SeatMap.css or similar relative path
 
-const SeatMap = ({ movieId, selectedDate, onSeatSelect }) => {
-    const [layout, setLayout] = useState([]);
+// CHANGE PROPS: Now expects layout (from Show/Screen) and showId (for booked seats)
+const SeatMap = ({ layout, showId, price, onSeatSelect }) => {
+    // layout is now passed in as a prop: [{ rowLabel: "A", seats: [1, 0, 1], price: 200 }, ...]
+
     const [bookedSeats, setBookedSeats] = useState([]);
     const [selectedSeats, setSelectedSeats] = useState([]);
 
+    // 1. Fetch Booked Seats ONLY (Runs when showId changes)
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchBookedSeats = async () => {
             try {
-                // FIX: Don't call API if movieId is undefined
-                if (!movieId) return;
+                if (!showId) return;
 
-                // 1. Get Movie Layout
-                const movieRes = await axios.get(`http://localhost:5000/movie/${movieId}`);
-                // Ensure seatConfiguration exists, default to empty array
-                const seatConfig = movieRes.data.movie.seatConfiguration || [];
-                setLayout(seatConfig);
+                // API Call to get seats booked for THIS specific show
+                // We will update the backend to support this dedicated showId query
+                const bookedRes = await axios.get(
+                    `http://localhost:5000/booking/booked?showId=${showId}`
+                );
+                setBookedSeats(bookedRes.data.bookedSeats || []);
 
-                // 2. Get Booked Seats (Only if date is selected)
-                if (selectedDate) {
-                    const bookedRes = await axios.get(
-                        `http://localhost:5000/booking/booked?movieId=${movieId}&date=${selectedDate}`
-                    );
-                    setBookedSeats(bookedRes.data.bookedSeats || []);
-                }
             } catch (err) {
-                console.error("Error loading seat map", err);
+                console.error("Error loading booked seats for show:", err);
             }
         };
-        fetchData();
-    }, [movieId, selectedDate]);
+        fetchBookedSeats();
+    }, [showId]);
 
-    // Helper to calculate total price of all selected seats
+    // Helper to calculate total price (simplified as price is now uniform per row)
     const calculateTotal = (selectedIds, currentLayout) => {
         let total = 0;
         selectedIds.forEach(id => {
             // Extract row label (e.g., "A" from "A1")
             const rowLabel = id.replace(/[0-9]/g, '');
             const row = currentLayout.find(r => r.rowLabel === rowLabel);
-            if (row) total += row.price;
+            // Use the row's price from the layout, if available
+            if (row && row.price) total += row.price;
+            // Fallback: If price prop was passed (not currently used, but good practice)
+            else if (price) total += price;
         });
         return total;
     };
 
-    const handleSeatClick = (rowLabel, seatIndex, price) => {
+    const handleSeatClick = (rowLabel, seatIndex) => {
         const seatId = `${rowLabel}${seatIndex + 1}`;
 
         if (bookedSeats.includes(seatId)) return;
@@ -67,11 +67,19 @@ const SeatMap = ({ movieId, selectedDate, onSeatSelect }) => {
 
         setSelectedSeats(newSelected);
 
-        // FIX: Send the ABSOLUTE TOTAL price, not just the difference.
-        // This ensures the Booking page displays the correct amount.
+        // Calculate and send the new total price to the parent (Booking.jsx)
         const newTotal = calculateTotal(newSelected, layout);
         onSeatSelect(newSelected, newTotal);
     };
+
+    if (!layout || layout.length === 0) {
+        return (
+            <Box textAlign="center" py={5}>
+                <Typography color="error">Seat map configuration missing for this screen.</Typography>
+                <Typography variant="caption">Please check Admin Data Entry (Step 3: Add Screen).</Typography>
+            </Box>
+        );
+    }
 
     return (
         <div className="cinema-container">
@@ -95,7 +103,7 @@ const SeatMap = ({ movieId, selectedDate, onSeatSelect }) => {
                                 <button
                                     key={seatId}
                                     className={`seat ${isBooked ? "booked" : ""} ${isSelected ? "selected" : ""}`}
-                                    onClick={(e) => { e.preventDefault(); handleSeatClick(row.rowLabel, seatIndex, row.price); }}
+                                    onClick={(e) => { e.preventDefault(); handleSeatClick(row.rowLabel, seatIndex); }}
                                     disabled={isBooked}
                                 >
                                     {seatIndex + 1}

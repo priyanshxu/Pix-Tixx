@@ -209,7 +209,7 @@ const HomePage = () => {
 
                                 <Box display="flex" gap={2} justifyContent={{ xs: 'center', md: 'flex-start' }}>
                                     <Button
-                                        onClick={() => navigate(`/booking/${featuredMovie._id}`)}
+                                        onClick={() => navigate(`/movie/${featuredMovie._id}/shows`)}
                                         variant="contained"
                                         size="large"
                                         sx={{

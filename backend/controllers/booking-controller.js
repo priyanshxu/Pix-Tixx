@@ -1,97 +1,168 @@
 import mongoose from "mongoose";
 import Bookings from "../models/Bookings.js";
-import Movie from "../models/Movie.js";
+import BlockedSeat from "../models/BlockedSeat.js";
+import Show from "../models/Show.js";
 import User from "../models/User.js";
-// Import the utilities we created earlier
 import { generateTicketPDF } from "../utils/generateTicket.js";
 import { sendTicketEmail } from "../utils/sendMail.js";
 
-// --- 1. NEW BOOKING (Updated with Email & PDF Logic) ---
-export const newBooking = async (req, res, next) => {
-    const { movie, date, seatNumber, user } = req.body;
+// --- 1. HOLD SEATS (Call this BEFORE opening Razorpay) ---
+export const holdSeats = async (req, res, next) => {
+    const { show, seatNumber, user } = req.body;
 
-    let existingMovie;
-    let existingUser;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        existingMovie = await Movie.findById(movie);
+        // A. Check verified bookings
+        const existingBooking = await Bookings.findOne({
+            show: show,
+            seatNumber: { $in: seatNumber }
+        }).session(session);
+
+        if (existingBooking) {
+            await session.abortTransaction();
+            return res.status(409).json({ message: "One or more seats already booked" });
+        }
+
+        // B. Check blocked seats (other users currently paying)
+        const blocked = await BlockedSeat.findOne({
+            show: show,
+            seatNumber: { $in: seatNumber }
+        }).session(session);
+
+        if (blocked) {
+            await session.abortTransaction();
+            return res.status(409).json({ message: "Seats are currently on hold by another user. Try again in 10 mins." });
+        }
+
+        // C. Block them!
+        const newBlock = new BlockedSeat({ show, seatNumber, user });
+        await newBlock.save({ session });
+
+        await session.commitTransaction();
+        return res.status(201).json({ message: "Seats held", blockId: newBlock._id });
+
+    } catch (err) {
+        await session.abortTransaction();
+        return res.status(500).json({ message: "Error holding seats", error: err });
+    } finally {
+        session.endSession();
+    }
+};
+
+// --- 2. NEW BOOKING (Updated to finalize after payment) ---
+export const newBooking = async (req, res, next) => {
+    // We now book a "show", not just a movie/date
+    const { show, seatNumber, user, blockId, price } = req.body; // Receive blockId and price
+
+    let existingShow;
+    let existingUser;
+    let booking; // Declare booking here so it's accessible outside the try block
+
+    try {
+        // Fetch Show and populate Movie & Screen details
+        existingShow = await Show.findById(show)
+            .populate("movie")
+            .populate({
+                path: "screen",
+                populate: { path: "theatre" }
+            });
+
         existingUser = await User.findById(user);
     } catch (err) {
         return res.status(500).json({ message: "Database Error", error: err });
     }
 
-    if (!existingMovie) {
-        return res.status(404).json({ message: "Movie not found" });
-    }
-    if (!existingUser) {
-        return res.status(404).json({ message: "User not found" });
-    }
+    if (!existingShow) return res.status(404).json({ message: "Show not found" });
+    if (!existingUser) return res.status(404).json({ message: "User not found" });
 
-    let booking;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        booking = new Bookings({
-            movie,
-            date: new Date(`${date}`),
+        // 1. Verify and Consume the Block (If blockId provided)
+        if (blockId) {
+            const hold = await BlockedSeat.findById(blockId).session(session);
+            if (!hold) {
+                await session.abortTransaction();
+                return res.status(408).json({ message: "Session expired or invalid. Seats released." });
+            }
+            // Delete the block because we are making it permanent
+            await BlockedSeat.findByIdAndDelete(blockId).session(session);
+        } else {
+            // Optional: If no blockId (direct booking without hold logic), perform a standard check
+            const isTaken = await Bookings.findOne({ show, seatNumber: { $in: seatNumber } }).session(session);
+            if (isTaken) {
+                await session.abortTransaction();
+                return res.status(409).json({ message: "Seats already booked." });
+            }
+        }
+
+        // 2. Create Permanent Booking
+        booking = new Bookings({ // Assign to outer scoped 'booking' variable
+            show: existingShow._id,
+            movie: existingShow.movie._id,
+            date: existingShow.startTime,
             user,
-            seatNumber, // Array of seats
+            seatNumber,
+            price: price,
         });
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
         existingUser.bookings.push(booking);
-        existingMovie.bookings.push(booking);
+        existingShow.bookings.push(booking);
 
         await existingUser.save({ session });
-        await existingMovie.save({ session });
+        await existingShow.save({ session });
         await booking.save({ session });
 
         await session.commitTransaction();
 
-        // --- START EMAIL LOGIC ---
-        console.log("Booking saved. Generating Ticket..."); // LOG 1
+        // --- EMAIL LOGIC ---
+        console.log("Booking saved. Generating Ticket...");
 
         try {
-            // 1. Generate PDF Buffer
-            const pdfBuffer = await generateTicketPDF(booking, existingMovie, existingUser);
-            console.log("PDF Generated."); // LOG 2
-
-            // 2. Prepare Email Details
+            // Check if movie/user are fully populated before calling generateTicketPDF
+            const pdfBuffer = await generateTicketPDF(booking, existingShow.movie, existingUser);
             const emailDetails = {
-                movieTitle: existingMovie.title,
-                date: booking.date,
+                movieTitle: existingShow.movie.title,
+                date: existingShow.startTime,
                 seats: booking.seatNumber,
-                bookingId: booking._id.toString().slice(-6).toUpperCase()
+                bookingId: booking._id.toString().slice(-6).toUpperCase(),
+                theatre: `${existingShow.screen.theatre.name}, ${existingShow.screen.name}`
             };
 
-            // 3. Send Email
             await sendTicketEmail(existingUser.email, emailDetails, pdfBuffer);
-            console.log(`Email sent successfully to ${existingUser.email}`); // LOG 3
+            console.log(`Email sent to ${existingUser.email}`);
 
         } catch (emailErr) {
             console.error("FAILED to send ticket email:", emailErr);
-            // We do NOT stop the request here because the booking is already real/saved.
         }
-        // --- END EMAIL LOGIC ---
 
     } catch (err) {
+        await session.abortTransaction();
         console.log(err);
         return res.status(500).json({ message: "Booking Failed", error: err });
+    } finally {
+        session.endSession();
     }
 
-    if (!booking) {
-        return res.status(500).json({ message: "Unable to create a Booking" });
-    }
-
+    // FIX: Return the booking object here
+    if (!booking) return res.status(500).json({ message: "Failed to finalize booking" });
     return res.status(201).json({ booking });
 };
 
-// --- 2. GET BOOKING BY ID (Fixed Missing Poster) ---
+// ... (Rest of your controller: getBokingById, getBookedSeats, deleteBooking) ...
 export const getBokingById = async (req, res, next) => {
     const id = req.params.id;
     let booking;
     try {
-        // 👇 CRITICAL FIX: .populate("movie") loads the Title & PosterUrl
-        booking = await Bookings.findById(id).populate("movie");
+        booking = await Bookings.findById(id)
+            .populate("movie")
+            .populate({
+                path: "show",
+                populate: { path: "screen", populate: { path: "theatre" } }
+            });
     } catch (err) {
         console.log(err);
     }
@@ -105,12 +176,14 @@ export const deleteBooking = async (req, res, next) => {
     const id = req.params.id;
     let booking;
     try {
-        booking = await Bookings.findByIdAndDelete(id).populate("user movie");
+        booking = await Bookings.findByIdAndDelete(id).populate("user show");
         const session = await mongoose.startSession();
         session.startTransaction();
         await booking.user.bookings.pull(booking);
-        await booking.movie.bookings.pull(booking);
-        await booking.movie.save({ session });
+        if (booking.show) {
+            await booking.show.bookings.pull(booking);
+            await booking.show.save({ session });
+        }
         await booking.user.save({ session });
         session.commitTransaction();
     } catch (err) {
@@ -123,13 +196,19 @@ export const deleteBooking = async (req, res, next) => {
 };
 
 export const getBookedSeats = async (req, res, next) => {
-    const { movieId, date } = req.query;
+    const { showId } = req.query;
     try {
-        const bookings = await Bookings.find({ movie: movieId, date: new Date(date) });
-        const bookedSeats = bookings.reduce((acc, booking) => acc.concat(booking.seatNumber), []);
-        return res.status(200).json({ bookedSeats });
+        // 1. Get Confirmed Bookings
+        const bookings = await Bookings.find({ show: showId });
+        const confirmedSeats = bookings.reduce((acc, booking) => acc.concat(booking.seatNumber), []);
+
+        // 2. Get Blocked Seats (Currently being paid for)
+        const blocked = await BlockedSeat.find({ show: showId });
+        const blockedSeats = blocked.reduce((acc, block) => acc.concat(block.seatNumber), []);
+
+        // Combine them so the UI disables both
+        return res.status(200).json({ bookedSeats: [...confirmedSeats, ...blockedSeats] });
     } catch (err) {
-        console.log(err);
         return res.status(500).json({ message: "Error fetching seats" });
     }
 };

@@ -30,7 +30,7 @@ export const sendUserAuthRequest = async(data, signup) => {
 
 export const sendAdminAuthRequest = async(data) => {
     const res = await axios
-        .post("/admin/login",{
+        .post("/admin/config/login",{
             email: data.email,
             password: data.password,
         })
