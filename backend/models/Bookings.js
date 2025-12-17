@@ -27,7 +27,7 @@ const bookingSchema = new mongoose.Schema({
     price: { type: Number, required: true }, // Store original price paid
     status: {
         type: String,
-        enum: ["booked", "resale_listed", "resold", "cancelled"],
+        enum: ["booked", "resale_listed", "resold", "cancelled", "unsold"],
         default: "booked"
     },
     resaleDetails: {

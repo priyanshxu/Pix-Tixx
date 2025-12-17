@@ -1,98 +1,138 @@
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
+import axios from "axios";
 
-export const generateTicketPDF = (booking, movie, user) => {
-    return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: "A4", margin: 30 });
-        let buffers = [];
+export const generateTicketPDF = async (booking, movie, user) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ size: "A4", margin: 0 }); // 0 margin for full bleeds
+            let buffers = [];
 
-        doc.on("data", (chunk) => buffers.push(chunk));
-        doc.on("end", () => resolve(Buffer.concat(buffers)));
-        doc.on("error", (err) => reject(err));
+            doc.on("data", (chunk) => buffers.push(chunk));
+            doc.on("end", () => resolve(Buffer.concat(buffers)));
+            doc.on("error", (err) => reject(err));
 
-        // Get formatted date and time safely
-        const showDateTime = new Date(booking.date);
-        const formattedDate = showDateTime.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        const formattedTime = showDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            // --- 1. DATA PREPARATION ---
 
-        // --- Get Location/Screen (Requires deep population, assuming show details are available) ---
-        // This relies on booking being populated with show, screen, and theatre
-        const theatreName = booking.show?.screen?.theatre?.name || "Cinema Location";
-        const screenName = booking.show?.screen?.name || "Screen N/A";
-        const locationText = `${theatreName}, ${screenName}`;
+            // CRITICAL FIX: We grab the date from the SHOW, not the booking creation date.
+            // We use optional chaining (?.) in case 'show' isn't populated for some reason.
+            const rawDate = booking.show?.startTime || booking.date || new Date();
+            const showDate = new Date(rawDate);
 
-        const price = booking.price ? `₹${booking.price.toFixed(2)}` : "N/A";
+            // Format: "Fri, 12 Oct 2025"
+            const dateStr = showDate.toLocaleDateString("en-GB", {
+                weekday: 'short', day: "2-digit", month: "short", year: "numeric"
+            });
+
+            // Format: "10:30 PM"
+            const timeStr = showDate.toLocaleTimeString("en-US", {
+                hour: "2-digit", minute: "2-digit"
+            });
+
+            // Fix Price: Use "Rs." instead of symbol (Helvetica doesn't support ₹)
+            const amount = booking.totalPaid ? `Rs. ${booking.totalPaid.toFixed(2)}` : "Paid";
+
+            // Location Logic
+            const theatre = booking.show?.screen?.theatre?.name || "Pix-Tix Cinema";
+            const screen = booking.show?.screen?.name || "Screen 1";
+
+            // Fetch Poster Image (Async)
+            let posterImage = null;
+            if (movie.posterUrl) {
+                try {
+                    const response = await axios.get(movie.posterUrl, { responseType: "arraybuffer" });
+                    posterImage = response.data;
+                } catch (e) {
+                    // console.error("Could not fetch poster image, using placeholder.");
+                }
+            }
+
+            // Generate QR Code (Async)
+            const qrData = JSON.stringify({
+                id: booking._id,
+                user: user.email,
+                seats: booking.seatNumber
+            });
+            const qrCodeBuffer = await QRCode.toBuffer(qrData);
 
 
-        // --- PDF DESIGN ---
+            // --- 2. PDF DESIGN ---
 
-        // 1. Title Bar
-        doc.fillColor("#e50914").fontSize(24).font("Helvetica-Bold")
-            .text("PIX-TIX E-TICKET", 30, 40, { align: "left" });
+            // Background Header
+            doc.rect(0, 0, 595, 120).fill("#1a1a1a");
 
-        doc.fillColor("#666").fontSize(10).font("Helvetica")
-            .text(`Booking ID: ${booking._id.toString().slice(-8).toUpperCase()}`, 30, 70);
+            doc.fillColor("#E50914").fontSize(28).font("Helvetica-Bold").text("PIX-TIX", 40, 45);
+            doc.fillColor("#ffffff").fontSize(10).font("Helvetica").text("YOUR TICKET TO ENTERTAINMENT", 40, 75);
 
-        doc.moveDown(3);
+            // Ticket Container
+            const boxTop = 140;
+            const boxLeft = 40;
+            const boxWidth = 515;
+            const boxHeight = 280;
 
-        // 2. Main Ticket Box (Dark Header + White Body)
-        const boxY = 120;
-        const boxHeight = 250;
+            doc.roundedRect(boxLeft, boxTop, boxWidth, boxHeight, 8)
+                .lineWidth(1).strokeColor("#cccccc").stroke()
+                .fill("#ffffff");
 
-        // Dark Header Area (Movie Info)
-        doc.rect(30, boxY, 550, 70).fill("#222");
+            // --- MOVIE SECTION ---
+            if (posterImage) {
+                doc.image(posterImage, boxLeft + 20, boxTop + 20, { width: 100, height: 150 });
+            } else {
+                doc.rect(boxLeft + 20, boxTop + 20, 100, 150).fill("#cccccc");
+                doc.fillColor("#000").fontSize(10).text("No Poster", boxLeft + 35, boxTop + 90);
+            }
 
-        // White Body Area (Details)
-        doc.rect(30, boxY + 70, 550, boxHeight - 70).fill("#ffffff");
+            doc.fillColor("#000000").fontSize(22).font("Helvetica-Bold")
+                .text(movie.title, boxLeft + 140, boxTop + 25, { width: 350 });
 
-        // 3. Movie Title & Poster Area (Inside Dark Header)
-        doc.fillColor("#fff").fontSize(20).font("Helvetica-Bold")
-            .text(movie.title, 150, boxY + 20, { width: 400 }); // Adjusted position
+            const genre = movie.genre ? movie.genre.join(", ") : "Cinema";
+            doc.fillColor("#666666").fontSize(12).font("Helvetica")
+                .text(`${genre} | ${movie.language || "English"}`, boxLeft + 140, boxTop + 55);
 
-        doc.fillColor("#aaa").fontSize(12).font("Helvetica")
-            .text(`Booked by: ${user.name}`, 150, boxY + 45);
+            doc.moveTo(boxLeft + 140, boxTop + 80).lineTo(boxLeft + 500, boxTop + 80).lineWidth(0.5).strokeColor("#eeeeee").stroke();
 
-        // Placeholder for Movie Poster (Since we cannot use external URLs)
-        doc.rect(50, boxY + 15, 80, 40).fill("#e50914");
-        doc.fillColor("#fff").fontSize(10).text("Poster", 55, boxY + 30);
 
-        // 4. Booking Details (Inside White Body)
-        let currentY = boxY + 95;
-        const col1X = 50;
-        const col2X = 300;
+            // --- DETAILS GRID ---
+            const gridTop = boxTop + 100;
+            const col1 = boxLeft + 140;
+            const col2 = boxLeft + 320;
 
-        const drawDetail = (label, value, x) => {
-            doc.fillColor("#555").fontSize(10).font("Helvetica")
-                .text(label, x, currentY);
-            doc.fillColor("#000").fontSize(14).font("Helvetica-Bold")
-                .text(value, x, currentY + 15);
-        };
+            const drawField = (label, value, x, y, isBold = false) => {
+                doc.fillColor("#888888").fontSize(9).font("Helvetica").text(label.toUpperCase(), x, y);
+                doc.fillColor("#000000").fontSize(12).font(isBold ? "Helvetica-Bold" : "Helvetica").text(value, x, y + 15);
+            };
 
-        // Row 1: Date & Time
-        drawDetail("DATE", formattedDate, col1X);
-        drawDetail("TIME", formattedTime, col2X);
-        currentY += 50;
+            // Row 1: Correct Date & Time
+            drawField("Date", dateStr, col1, gridTop, true);
+            drawField("Time", timeStr, col2, gridTop, true);
 
-        // Row 2: Location & Screen
-        drawDetail("LOCATION", locationText, col1X);
-        drawDetail("TOTAL PAID", price, col2X);
-        currentY += 50;
+            // Row 2: Location
+            drawField("Theatre", theatre, col1, gridTop + 45);
+            drawField("Screen", screen, col2, gridTop + 45);
 
-        // Row 3: Seats
-        doc.fillColor("#555").fontSize(10).font("Helvetica").text("SEATS", col1X, currentY);
-        doc.fillColor("#e50914").fontSize(14).font("Helvetica-Bold")
-            .text(booking.seatNumber.join(", "), col1X, currentY + 15);
-        currentY += 50;
+            // Row 3: Seats & Price
+            drawField("Seats", booking.seatNumber.join(", "), col1, gridTop + 90, true);
+            drawField("Price", amount, col2, gridTop + 90);
 
-        // 5. QR Code Area (Placeholder)
-        doc.rect(30, currentY + 30, 550, 80).fill("#f0f0f0");
-        doc.fillColor("#333").fontSize(14).font("Helvetica-Bold")
-            .text("QR CODE AREA", 0, currentY + 60, { align: "center" });
 
-        doc.fillColor("#777").fontSize(10).text(
-            "Scan this code at the entrance. This ticket is invalid if resold.",
-            0, currentY + 100, { align: "center" }
-        );
+            // --- FOOTER SECTION (QR CODE) ---
+            const footerTop = boxTop + boxHeight + 30;
 
-        doc.end();
+            doc.moveTo(20, footerTop).lineTo(575, footerTop)
+                .dash(5, { space: 5 }).strokeColor("#999999").stroke();
+
+            doc.image(qrCodeBuffer, 230, footerTop + 20, { width: 130 });
+
+            doc.fillColor("#333333").fontSize(12).font("Helvetica-Bold")
+                .text("SCAN AT ENTRY", 0, footerTop + 160, { align: "center" });
+
+            doc.fillColor("#666666").fontSize(9).font("Helvetica")
+                .text(`Booking ID: ${booking._id.toString().toUpperCase()}`, 0, footerTop + 175, { align: "center" });
+
+            doc.end();
+
+        } catch (error) {
+            reject(error);
+        }
     });
 };

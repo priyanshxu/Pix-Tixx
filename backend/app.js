@@ -22,14 +22,17 @@ app.use("/booking", bookingRouter);
 app.use("/show", showRouter);
 app.use("/payment", paymentRouter);
 app.use("/resale", resaleRouter);
+
+const PORT = process.env.PORT || 5000;
+
 mongoose
     .connect(
         `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/appName=Cluster0`
         // `mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
     )
     .then(() =>
-        app.listen(5000,() => 
-        console.log("Connected to Database and Server is running")
+        app.listen(process.env.PORT,() => 
+            console.log(1`Connected to Database and Server is running ${PORT}`)
         )
     )
     .catch((e) => console.log(e));

@@ -3,10 +3,9 @@ import Bookings from "../models/Bookings.js";
 import BlockedSeat from "../models/BlockedSeat.js";
 import Show from "../models/Show.js";
 import User from "../models/User.js";
-import { generateTicketPDF } from "../utils/generateTicket.js";
-import { sendTicketEmail } from "../utils/sendMail.js";
+import { producer } from "../config/kafka.js"; // Import Kafka Producer
 
-// --- 1. HOLD SEATS (Call this BEFORE opening Razorpay) ---
+// --- 1. HOLD SEATS (unchanged) ---
 export const holdSeats = async (req, res, next) => {
     const { show, seatNumber, user } = req.body;
 
@@ -14,7 +13,6 @@ export const holdSeats = async (req, res, next) => {
     session.startTransaction();
 
     try {
-        // A. Check verified bookings
         const existingBooking = await Bookings.findOne({
             show: show,
             seatNumber: { $in: seatNumber }
@@ -25,7 +23,6 @@ export const holdSeats = async (req, res, next) => {
             return res.status(409).json({ message: "One or more seats already booked" });
         }
 
-        // B. Check blocked seats (other users currently paying)
         const blocked = await BlockedSeat.findOne({
             show: show,
             seatNumber: { $in: seatNumber }
@@ -36,7 +33,6 @@ export const holdSeats = async (req, res, next) => {
             return res.status(409).json({ message: "Seats are currently on hold by another user. Try again in 10 mins." });
         }
 
-        // C. Block them!
         const newBlock = new BlockedSeat({ show, seatNumber, user });
         await newBlock.save({ session });
 
@@ -51,17 +47,14 @@ export const holdSeats = async (req, res, next) => {
     }
 };
 
-// --- 2. NEW BOOKING (Updated to finalize after payment) ---
 export const newBooking = async (req, res, next) => {
-    // We now book a "show", not just a movie/date
-    const { show, seatNumber, user, blockId, price } = req.body; // Receive blockId and price
+    const { show, seatNumber, user, blockId, price, walletUsed, totalPaid } = req.body;
 
     let existingShow;
     let existingUser;
-    let booking; // Declare booking here so it's accessible outside the try block
+    let booking;
 
     try {
-        // Fetch Show and populate Movie & Screen details
         existingShow = await Show.findById(show)
             .populate("movie")
             .populate({
@@ -81,17 +74,14 @@ export const newBooking = async (req, res, next) => {
     session.startTransaction();
 
     try {
-        // 1. Verify and Consume the Block (If blockId provided)
         if (blockId) {
             const hold = await BlockedSeat.findById(blockId).session(session);
             if (!hold) {
                 await session.abortTransaction();
                 return res.status(408).json({ message: "Session expired or invalid. Seats released." });
             }
-            // Delete the block because we are making it permanent
             await BlockedSeat.findByIdAndDelete(blockId).session(session);
         } else {
-            // Optional: If no blockId (direct booking without hold logic), perform a standard check
             const isTaken = await Bookings.findOne({ show, seatNumber: { $in: seatNumber } }).session(session);
             if (isTaken) {
                 await session.abortTransaction();
@@ -99,14 +89,21 @@ export const newBooking = async (req, res, next) => {
             }
         }
 
-        // 2. Create Permanent Booking
-        booking = new Bookings({ // Assign to outer scoped 'booking' variable
+        if (walletUsed && walletUsed > 0) {
+            if (existingUser.walletBalance < walletUsed) {
+                await session.abortTransaction();
+                return res.status(400).json({ message: "Insufficient wallet balance during final processing." });
+            }
+            existingUser.walletBalance -= walletUsed;
+        }
+        booking = new Bookings({
             show: existingShow._id,
             movie: existingShow.movie._id,
             date: existingShow.startTime,
             user,
             seatNumber,
-            price: price,
+            price: price, 
+            totalPaid: totalPaid
         });
 
         existingUser.bookings.push(booking);
@@ -118,25 +115,29 @@ export const newBooking = async (req, res, next) => {
 
         await session.commitTransaction();
 
-        // --- EMAIL LOGIC ---
-        console.log("Booking saved. Generating Ticket...");
-
         try {
-            // Check if movie/user are fully populated before calling generateTicketPDF
-            const pdfBuffer = await generateTicketPDF(booking, existingShow.movie, existingUser);
-            const emailDetails = {
-                movieTitle: existingShow.movie.title,
-                date: existingShow.startTime,
-                seats: booking.seatNumber,
-                bookingId: booking._id.toString().slice(-6).toUpperCase(),
-                theatre: `${existingShow.screen.theatre.name}, ${existingShow.screen.name}`
-            };
-
-            await sendTicketEmail(existingUser.email, emailDetails, pdfBuffer);
-            console.log(`Email sent to ${existingUser.email}`);
-
-        } catch (emailErr) {
-            console.error("FAILED to send ticket email:", emailErr);
+            await producer.connect();
+            await producer.send({
+                topic: 'ticket-bookings',
+                messages: [
+                    {
+                        value: JSON.stringify({
+                            event: 'BOOKING_CONFIRMED',
+                            bookingId: booking._id,
+                            userId: existingUser._id,
+                            userEmail: existingUser.email,
+                            movieTitle: existingShow.movie.title,
+                            seatNumber: booking.seatNumber,
+                            date: existingShow.startTime,
+                            theatre: `${existingShow.screen.theatre.name}, ${existingShow.screen.name}`
+                        })
+                    }
+                ]
+            });
+            console.log(`[Kafka] Booking event published for ID: ${booking._id}`);
+        } catch (kafkaErr) {
+            console.error("FAILED to send Kafka event:", kafkaErr);
+            
         }
 
     } catch (err) {
@@ -147,12 +148,9 @@ export const newBooking = async (req, res, next) => {
         session.endSession();
     }
 
-    // FIX: Return the booking object here
     if (!booking) return res.status(500).json({ message: "Failed to finalize booking" });
     return res.status(201).json({ booking });
 };
-
-// ... (Rest of your controller: getBokingById, getBookedSeats, deleteBooking) ...
 export const getBokingById = async (req, res, next) => {
     const id = req.params.id;
     let booking;
@@ -198,15 +196,12 @@ export const deleteBooking = async (req, res, next) => {
 export const getBookedSeats = async (req, res, next) => {
     const { showId } = req.query;
     try {
-        // 1. Get Confirmed Bookings
         const bookings = await Bookings.find({ show: showId });
         const confirmedSeats = bookings.reduce((acc, booking) => acc.concat(booking.seatNumber), []);
 
-        // 2. Get Blocked Seats (Currently being paid for)
         const blocked = await BlockedSeat.find({ show: showId });
         const blockedSeats = blocked.reduce((acc, block) => acc.concat(block.seatNumber), []);
 
-        // Combine them so the UI disables both
         return res.status(200).json({ bookedSeats: [...confirmedSeats, ...blockedSeats] });
     } catch (err) {
         return res.status(500).json({ message: "Error fetching seats" });
