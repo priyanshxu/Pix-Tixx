@@ -40,10 +40,19 @@ export const generateTicketPDF = async (booking, movie, user) => {
             let posterImage = null;
             if (movie.posterUrl) {
                 try {
-                    const response = await axios.get(movie.posterUrl, { responseType: "arraybuffer" });
+                    // --- FIX START: FORCE JPG FORMAT ---
+                    // Cloudinary often serves WEBP by default, which crashes PDFKit.
+                    // We inject '/f_jpg' to force a JPEG response.
+                    const safePosterUrl = movie.posterUrl.includes('cloudinary')
+                        ? movie.posterUrl.replace('/upload/', '/upload/f_jpg/')
+                        : movie.posterUrl;
+
+                    const response = await axios.get(safePosterUrl, { responseType: "arraybuffer" });
                     posterImage = response.data;
+                    // --- FIX END ---
                 } catch (e) {
-                    // console.error("Could not fetch poster image, using placeholder.");
+                    console.error("Could not fetch poster image for PDF:", e.message);
+                    // posterImage remains null, so the placeholder logic below will be used
                 }
             }
 
@@ -76,7 +85,14 @@ export const generateTicketPDF = async (booking, movie, user) => {
 
             // --- MOVIE SECTION ---
             if (posterImage) {
-                doc.image(posterImage, boxLeft + 20, boxTop + 20, { width: 100, height: 150 });
+                try {
+                    doc.image(posterImage, boxLeft + 20, boxTop + 20, { width: 100, height: 150 });
+                } catch (imgErr) {
+                    // Fallback if image data is corrupt or incompatible
+                    console.error("PDF Image insertion failed:", imgErr.message);
+                    doc.rect(boxLeft + 20, boxTop + 20, 100, 150).fill("#cccccc");
+                    doc.fillColor("#000").fontSize(10).text("Image Error", boxLeft + 35, boxTop + 90);
+                }
             } else {
                 doc.rect(boxLeft + 20, boxTop + 20, 100, 150).fill("#cccccc");
                 doc.fillColor("#000").fontSize(10).text("No Poster", boxLeft + 35, boxTop + 90);

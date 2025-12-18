@@ -4,50 +4,69 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// ✅ OPTIMIZED TRANSPORTER
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465, // Use 465 (SSL) instead of 587
-  secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // use an App Password for Gmail
-    },
+  port: 465,
+  secure: true, // Use SSL
+  pool: true,   // <--- ENABLE POOLING (Keeps connection open)
+  maxConnections: 5, // Limit parallel connections
+  maxMessages: 100,  // Recycle connection after 100 messages
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  // timeouts to prevent hanging
+  socketTimeout: 30000,
+  greetingTimeout: 15000
 });
 
-// Generic sendEmail — wraps transporter and logs errors
+// Verify connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Email Connection Error:", error);
+  } else {
+    console.log("✅ Email Server Ready (Pooled)");
+  }
+});
+
 export const sendEmail = async (mailOptions) => {
-    mailOptions.from = mailOptions.from || '"Pix-Tix Support" <support@pixtix.com>';
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('[sendEmail] sent:', info.response || info.messageId);
-        return info;
-    } catch (err) {
-        console.error('[sendEmail] failed to send email:', err);
-        throw err; // caller will handle non-fatal errors as appropriate
-    }
+  mailOptions.from = mailOptions.from || '"Pix-Tix Support" <support@pixtix.com>';
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('[sendEmail] sent:', info.messageId);
+    return info;
+  } catch (err) {
+    console.error('[sendEmail] failed:', err);
+    // Do not throw error for OTPs to prevent crashing the registration flow
+    // Just return null so the user knows it failed
+    return null;
+  }
 };
 
-// Defensive sendResaleNotification
+// ... (Keep your sendOtpEmail, sendTicketEmail, etc. functions exactly as they were) ...
+// Just ensure they use the new sendEmail wrapper above.
+// Copy-paste your existing template functions (sendOtpEmail, etc.) below this line.
 export const sendResaleNotification = async (sellerEmail, sellerName, bookingDetails, payout) => {
-    // Ensure bookingDetails is an object (if a string was passed, convert it)
-    let details = {};
-    if (typeof bookingDetails === 'string') {
-        details.movieTitle = bookingDetails;
-    } else if (bookingDetails && typeof bookingDetails === 'object') {
-        details = bookingDetails;
-    } else {
-        details.movieTitle = 'Unknown Title';
-    }
+  // Ensure bookingDetails is an object
+  let details = {};
+  if (typeof bookingDetails === 'string') {
+    details.movieTitle = bookingDetails;
+  } else if (bookingDetails && typeof bookingDetails === 'object') {
+    details = bookingDetails;
+  } else {
+    details.movieTitle = 'Unknown Title';
+  }
 
-    const movieTitle = details.movieTitle ?? 'Unknown Title';
-    const displaySeats = Array.isArray(details.seats) ? details.seats.join(', ') : (details.seats || 'N/A');
-    const bookingId = details.bookingId ?? (details._id?.toString?.() ?? 'N/A');
-    const theatre = details.theatre ?? 'Unknown Theatre';
+  const movieTitle = details.movieTitle ?? 'Unknown Title';
+  const displaySeats = Array.isArray(details.seats) ? details.seats.join(', ') : (details.seats || 'N/A');
+  const bookingId = details.bookingId ?? (details._id?.toString?.() ?? 'N/A');
+  const theatre = details.theatre ?? 'Unknown Theatre';
 
-    const mailOptions = {
-        to: sellerEmail,
-        subject: `Success! Your Ticket for ${movieTitle} has been Resold 💰`,
-        html: `
+  const mailOptions = {
+    to: sellerEmail,
+    subject: `Success! Your Ticket for ${movieTitle} has been Resold 💰`,
+    html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #4CAF50; max-width: 600px; margin: auto;">
         <h2 style="color: #4CAF50;">Ticket Sold! Congratulations, ${sellerName}!</h2>
         <p>Your ticket for <strong>${movieTitle}</strong> has been successfully purchased on the Resale Marketplace.</p>
@@ -64,18 +83,16 @@ export const sendResaleNotification = async (sellerEmail, sellerName, bookingDet
         <p>Thank you for using Pix-Tix!</p>
       </div>
     `,
-    };
-    return sendEmail(mailOptions);
+  };
+  return sendEmail(mailOptions);
 };
 
-
-// OTP email (unchanged except using sendEmail wrapper)
 export const sendOtpEmail = async (email, otp) => {
-    const mailOptions = {
-        from: '"Pix-Tix Security" <noreply@pixtix.com>',
-        to: email,
-        subject: 'Verify Your Account - Pix-Tix',
-        html: `
+  const mailOptions = {
+    from: '"Pix-Tix Security" <noreply@pixtix.com>',
+    to: email,
+    subject: 'Verify Your Account - Pix-Tix',
+    html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
         <h2 style="color: #e50914;">Welcome to Pix-Tix!</h2>
         <p>To complete your registration, please verify your email address.</p>
@@ -84,16 +101,16 @@ export const sendOtpEmail = async (email, otp) => {
         <p>This code expires in 10 minutes.</p>
       </div>
     `,
-    };
-    return sendEmail(mailOptions);
+  };
+  return sendEmail(mailOptions);
 };
 
 export const sendWelcomeEmail = async (email, name) => {
-    const mailOptions = {
-        from: '"Pix-Tix Cinema" <welcome@pixtix.com>',
-        to: email,
-        subject: 'Welcome to the Movies! 🍿',
-        html: `
+  const mailOptions = {
+    from: '"Pix-Tix Cinema" <welcome@pixtix.com>',
+    to: email,
+    subject: 'Welcome to the Movies! 🍿',
+    html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
         <h2 style="color: #e50914;">Hello, ${name}!</h2>
         <p>Your account has been successfully verified.</p>
@@ -102,30 +119,30 @@ export const sendWelcomeEmail = async (email, name) => {
         <a href="http://localhost:3000" style="background: #e50914; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Book Now</a>
       </div>
     `,
-    };
-    return sendEmail(mailOptions);
+  };
+  return sendEmail(mailOptions);
 };
 
 export const sendTicketEmail = async (email, bookingDetails = {}, pdfBuffer) => {
-    // Format date in Asia/Kolkata timezone explicitly
-    const showDate = bookingDetails?.date ? new Date(bookingDetails.date) : new Date();
-    const displayDateTime = showDate.toLocaleString('en-IN', {
-        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Kolkata'
-    });
+  // Format date in Asia/Kolkata timezone explicitly
+  const showDate = bookingDetails?.date ? new Date(bookingDetails.date) : new Date();
+  const displayDateTime = showDate.toLocaleString('en-IN', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
 
-    const movieTitle = bookingDetails?.movieTitle ?? 'Unknown Title';
-    const theatre = bookingDetails?.theatre ?? 'Unknown Theatre';
-    const seats = Array.isArray(bookingDetails?.seats) ? bookingDetails.seats.join(', ') : (bookingDetails?.seats || 'N/A');
-    const bookingId = bookingDetails?.bookingId ?? (bookingDetails?._id?.toString?.() ?? 'N/A');
+  const movieTitle = bookingDetails?.movieTitle ?? 'Unknown Title';
+  const theatre = bookingDetails?.theatre ?? 'Unknown Theatre';
+  const seats = Array.isArray(bookingDetails?.seats) ? bookingDetails.seats.join(', ') : (bookingDetails?.seats || 'N/A');
+  const bookingId = bookingDetails?.bookingId ?? (bookingDetails?._id?.toString?.() ?? 'N/A');
 
-    const mailOptions = {
-        from: '"Pix-Tix Box Office" <tickets@pixtix.com>',
-        to: email,
-        subject: `Booking Confirmed: ${movieTitle}`,
-        html: `
+  const mailOptions = {
+    from: '"Pix-Tix Box Office" <tickets@pixtix.com>',
+    to: email,
+    subject: `Booking Confirmed: ${movieTitle}`,
+    html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; border: 1px solid #ddd; max-width: 600px; margin: auto;">
         <h2 style="color: #e50914;">Booking Confirmed! 🎟️</h2>
         <p>Hi there,</p>
@@ -142,18 +159,17 @@ export const sendTicketEmail = async (email, bookingDetails = {}, pdfBuffer) => 
         <small style="color: #888;">Pix-Tix Team</small>
       </div>
     `,
-        attachments: pdfBuffer ? [
-            {
-                filename: `PixTix-Ticket-${bookingId}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf'
-            }
-        ] : []
-    };
+    attachments: pdfBuffer ? [
+      {
+        filename: `PixTix-Ticket-${bookingId}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }
+    ] : []
+  };
 
-    return sendEmail(mailOptions);
+  return sendEmail(mailOptions);
 };
-// ... existing imports and functions
 
 export const sendResaleExpiryEmail = async (email, userName, movieTitle, showDate) => {
   const mailOptions = {
