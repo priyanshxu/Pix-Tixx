@@ -15,50 +15,57 @@ const ShowSelection = () => {
     const cityId = localStorage.getItem("userCityId");
     const cityName = localStorage.getItem("userCityName");
 
-    // Helper: Compare two dates ignoring time
-    const isSameDate = (d1, d2) => {
-        return d1.getFullYear() === d2.getFullYear() &&
-            d1.getMonth() === d2.getMonth() &&
-            d1.getDate() === d2.getDate();
-    };
-
     // 1. Fetch Shows on Mount & Date Change
     useEffect(() => {
-        if (!cityId) return;
+        if (!cityId) {
+            console.error("❌ City ID is missing from LocalStorage");
+            return;
+        }
 
         setLoading(true);
-        // Ensure we send YYYY-MM-DD
-        const dateStr = selectedDate.toLocaleDateString('en-CA'); // 'en-CA' gives YYYY-MM-DD format consistently
+        const dateStr = selectedDate.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        console.log(`📡 Fetching shows for Movie: ${id}, Date: ${dateStr}, City: ${cityId}`);
 
-        // This endpoint should also return total seat count for the screen
         axios.get(`/admin/config/shows?movieId=${id}&date=${dateStr}&cityId=${cityId}`)
             .then(res => {
+                console.log("✅ API Response:", res.data); // DEBUG LOG
+
                 const grouped = {};
                 const now = new Date();
 
-                res.data.shows.forEach(show => {
-                    const showTime = new Date(show.startTime);
+                // Handle both variable names just in case backend sends 'finalShows' or 'shows'
+                const fetchedShows = res.data.shows || res.data.finalShows || [];
 
-                    // Filter: Must be in future AND match selected date
-                    // Note: The backend filter might be enough, but client-side check ensures correctness
-                    if (showTime > now && isSameDate(showTime, selectedDate)) {
-                        if (show.screen && show.screen.theatre) {
-                            const theatreName = show.screen.theatre.name;
-                            if (!grouped[theatreName]) {
-                                grouped[theatreName] = {
-                                    name: theatreName,
-                                    location: show.screen.theatre.location,
-                                    showtimes: []
-                                };
-                            }
-                            // Calculate Availability
-                            const totalSeats = show.screen.seatConfiguration.reduce((count, row) =>
-                                count + row.seats.filter(s => s === 1).length, 0);
-                            const bookedCount = show.bookings ? show.bookings.length : 0;
-                            const available = totalSeats - bookedCount;
+                if (fetchedShows.length === 0) {
+                    console.warn("⚠️ Backend returned 0 shows for this date.");
+                }
 
-                            grouped[theatreName].showtimes.push({ ...show, availableSeats: available, totalSeats });
+                fetchedShows.forEach(show => {
+                    // Safe Check: Ensure theatre data exists
+                    if (show.screen && show.screen.theatre) {
+                        const theatreName = show.screen.theatre.name;
+
+                        // GROUPING LOGIC
+                        if (!grouped[theatreName]) {
+                            grouped[theatreName] = {
+                                name: theatreName,
+                                location: show.screen.theatre.location,
+                                showtimes: []
+                            };
                         }
+
+                        // Calculate Availability
+                        // Check if seatConfiguration exists to avoid crash
+                        const totalSeats = show.screen.seatConfiguration
+                            ? show.screen.seatConfiguration.reduce((count, row) => count + row.seats.filter(s => s === 1).length, 0)
+                            : 0;
+
+                        const bookedCount = show.bookings ? show.bookings.length : 0;
+                        const available = totalSeats - bookedCount;
+
+                        grouped[theatreName].showtimes.push({ ...show, availableSeats: available, totalSeats });
+                    } else {
+                        console.warn("⚠️ Skipping show due to missing Screen/Theatre data:", show);
                     }
                 });
 
@@ -70,21 +77,22 @@ const ShowSelection = () => {
                 setShows(grouped);
             })
             .catch(err => {
-                console.error("Error fetching shows:", err);
+                console.error("❌ Error fetching shows:", err);
                 setShows({});
             })
             .finally(() => setLoading(false));
     }, [id, selectedDate, cityId]);
 
-    // Helper to determine Chip color based on availability
+    // Helper to determine Chip color
     const getAvailabilityColor = (available, total) => {
+        if (total === 0) return { label: "Unknown", color: "#aaa" };
         const ratio = available / total;
-        if (ratio >= 0.7) return { label: "High", color: "#4CAF50" }; // Green
-        if (ratio >= 0.3) return { label: "Medium", color: "#FFC107" }; // Yellow
-        return { label: "Low", color: "#F44336" }; // Red
+        if (ratio >= 0.7) return { label: "High", color: "#4CAF50" };
+        if (ratio >= 0.3) return { label: "Medium", color: "#FFC107" };
+        return { label: "Low", color: "#F44336" };
     };
 
-    // Simple Date Generators (Next 7 days)
+    // Date Generators
     const dates = [0, 1, 2, 3, 4, 5, 6].map(days => {
         const d = new Date();
         d.setDate(d.getDate() + days);
@@ -95,17 +103,11 @@ const ShowSelection = () => {
         navigate(`/booking/show/${showId}`);
     };
 
-    // Formatting Helper for Display (DD-MM-YYYY)
-
-    const formatDisplayDate = (date) => {
-        return date.toLocaleDateString('en-GB'); // Forces DD/MM/YYYY
-    };
-
     return (
         <Box minHeight="100vh" bgcolor="#000000" color="white" pb={5}>
             <GlobalLoader open={loading} />
 
-            {/* Header: Date Selection & City Context */}
+            {/* Header */}
             <Box bgcolor="#1a1a1a" py={3} boxShadow={3} borderBottom="3px solid #e50914">
                 <Container>
                     <Typography variant="h6" fontWeight="300" color="#aaa" mb={1}>
@@ -147,7 +149,10 @@ const ShowSelection = () => {
                     <Box textAlign="center" py={10}>
                         <CalendarTodayIcon sx={{ fontSize: 80, color: "#333", mb: 2 }} />
                         <Typography variant="h6" color="#888">
-                            No upcoming shows for {formatDisplayDate(selectedDate)} in {cityName}.
+                            No shows available for {selectedDate.toLocaleDateString()}.<br />
+                            <span style={{ fontSize: "0.8em", color: "#555" }}>
+                                (Make sure you selected the right City and Date)
+                            </span>
                         </Typography>
                     </Box>
                 ) : (
