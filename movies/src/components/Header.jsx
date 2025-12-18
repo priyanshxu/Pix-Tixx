@@ -81,7 +81,7 @@ const Header = (props) => {
             const userId = localStorage.getItem("userId");
             if (userId) {
                 // Use VITE_API_URL logic here if you updated index.js, or direct .env access
-                const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+                const API_URL = import.meta.env.REACT_APP_API_URL || "http://localhost:5000";
                 axios.get(`${API_URL}/user/${userId}`)
                     .then(res => {
                         const firstName = res.data.user.name.split(" ")[0];
