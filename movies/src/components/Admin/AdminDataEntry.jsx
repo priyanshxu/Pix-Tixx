@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
     Box, Button, TextField, Typography, Container, Paper, Tabs, Tab,
-    MenuItem, Select, InputLabel, FormControl, Grid
+    MenuItem, Select, InputLabel, FormControl, Grid, Divider, Chip
 } from '@mui/material';
 import axios from 'axios';
-import SeatConfigurator from './SeatConfigurator'; // Re-use your seat tool!
-
-
-const BASE_URL = process.env.REACT_APP_API_URL
+import SeatConfigurator from './SeatConfigurator';
+import LocationCityIcon from '@mui/icons-material/LocationCity';
+import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
+import ChairIcon from '@mui/icons-material/Chair';
+import MovieFilterIcon from '@mui/icons-material/MovieFilter';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import SaveIcon from '@mui/icons-material/Save';
 
 const AdminDataEntry = () => {
     const [tab, setTab] = useState(0);
@@ -45,7 +48,6 @@ const AdminDataEntry = () => {
     };
 
     // --- HANDLERS ---
-
     const handleAddCity = async () => {
         try {
             await axios.post(`/admin/config/city`, cityForm);
@@ -88,10 +90,9 @@ const AdminDataEntry = () => {
         } catch (err) { alert("Error creating show"); }
     };
 
-    // Helper to handle City selection properly
     const handleCitySelect = (e) => {
         const selectedId = e.target.value;
-        setTheatreForm({ ...theatreForm, cityId: selectedId }); // Use for Theatre Form
+        setTheatreForm({ ...theatreForm, cityId: selectedId });
         fetchTheatres(selectedId);
     };
 
@@ -99,158 +100,230 @@ const AdminDataEntry = () => {
         fetchTheatres(e.target.value);
     };
 
-    return (
-        <Box minHeight="100vh" bgcolor="#f4f6f8" py={5}>
-            <Container maxWidth="md">
-                <Typography variant="h4" fontWeight="bold" textAlign="center" mb={4}>
-                    Cinema Configuration
-                </Typography>
+    // --- DARK MODE INPUT STYLE HELPERS ---
+    const inputStyle = {
+        "& .MuiInputLabel-root": { color: "#aaa" },
+        "& .MuiOutlinedInput-root": {
+            "& fieldset": { borderColor: "#444" },
+            "&:hover fieldset": { borderColor: "#888" },
+            "&.Mui-focused fieldset": { borderColor: "#e50914" },
+            color: "white"
+        },
+        "& .MuiSelect-icon": { color: "white" },
+        "& input[type='datetime-local']::-webkit-calendar-picker-indicator": {
+            filter: "invert(1)" // Inverts calendar icon color for dark mode
+        }
+    };
 
-                <Paper square sx={{ mb: 2 }}>
-                    <Tabs value={tab} onChange={(e, v) => setTab(v)} centered indicatorColor="secondary" textColor="inherit">
-                        <Tab label="1. Add City" />
-                        <Tab label="2. Add Theatre" />
-                        <Tab label="3. Add Screen" />
-                        <Tab label="4. Add Show" />
+    return (
+        <Box minHeight="100vh" bgcolor="#0a0a0a" py={5} fontFamily="'Poppins', sans-serif">
+            <Container maxWidth="lg">
+                <Box textAlign="center" mb={5}>
+                    <Typography variant="h3" fontWeight="bold" color="#e50914" sx={{ textShadow: "0 0 10px rgba(229, 9, 20, 0.4)" }}>
+                        Cinema Configuration
+                    </Typography>
+                    <Typography variant="body1" color="gray">
+                        Setup Cities, Theatres, Screens, and Show Schedules.
+                    </Typography>
+                </Box>
+
+                {/* --- NAVIGATION TABS --- */}
+                <Paper
+                    elevation={4}
+                    sx={{
+                        bgcolor: "#1a1a1a",
+                        borderRadius: 3,
+                        mb: 4,
+                        border: "1px solid #333",
+                        p: 1
+                    }}
+                >
+                    <Tabs
+                        value={tab}
+                        onChange={(e, v) => setTab(v)}
+                        variant="fullWidth"
+                        TabIndicatorProps={{ style: { backgroundColor: "#e50914", height: 4 } }}
+                        textColor="inherit"
+                        sx={{
+                            "& .MuiTab-root": {
+                                color: "#888", fontWeight: "bold", fontSize: "1rem", textTransform: "none", py: 3,
+                                "&.Mui-selected": { color: "white", bgcolor: "rgba(255,255,255,0.05)" }
+                            }
+                        }}
+                    >
+                        <Tab icon={<LocationCityIcon />} label="1. Cities" />
+                        <Tab icon={<TheaterComedyIcon />} label="2. Theatres" />
+                        <Tab icon={<ChairIcon />} label="3. Screens" />
+                        <Tab icon={<MovieFilterIcon />} label="4. Shows" />
                     </Tabs>
                 </Paper>
 
-                <Paper sx={{ p: 4 }}>
+                {/* --- CONTENT AREA --- */}
+                <Paper sx={{ p: { xs: 3, md: 5 }, bgcolor: "#1a1a1a", color: "white", borderRadius: 3, border: "1px solid #333", minHeight: "400px" }}>
 
                     {/* --- TAB 1: ADD CITY --- */}
                     {tab === 0 && (
-                        <Box display="flex" flexDirection="column" gap={3}>
-                            <Typography variant="h6">Create a City</Typography>
-                            <TextField label="City Name" value={cityForm.name} onChange={e => setCityForm({ ...cityForm, name: e.target.value })} fullWidth />
-                            <TextField label="City Code (e.g., MUM)" value={cityForm.code} onChange={e => setCityForm({ ...cityForm, code: e.target.value })} fullWidth />
-                            <Button variant="contained" onClick={handleAddCity} sx={{ bgcolor: "#2b2d42" }}>Add City</Button>
-
-                            <Typography variant="subtitle2" mt={2} color="textSecondary">
-                                Existing Cities: {cities.map(c => c.name).join(", ") || "None"}
+                        <Box maxWidth="600px" mx="auto">
+                            <Typography variant="h5" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
+                                <AddCircleIcon sx={{ color: "#e50914" }} /> Add New City
                             </Typography>
+                            <Box display="flex" flexDirection="column" gap={3}>
+                                <TextField label="City Name" value={cityForm.name} onChange={e => setCityForm({ ...cityForm, name: e.target.value })} fullWidth sx={inputStyle} />
+                                <TextField label="City Code (e.g., MUM)" value={cityForm.code} onChange={e => setCityForm({ ...cityForm, code: e.target.value })} fullWidth sx={inputStyle} />
+                                <Button variant="contained" size="large" onClick={handleAddCity} sx={{ bgcolor: "#e50914", fontWeight: "bold", py: 1.5, "&:hover": { bgcolor: "#b20710" } }}>
+                                    Save City
+                                </Button>
+
+                                <Divider sx={{ bgcolor: "#333", my: 2 }} />
+                                <Box>
+                                    <Typography variant="subtitle2" color="gray" mb={1}>Existing Cities:</Typography>
+                                    <Box display="flex" gap={1} flexWrap="wrap">
+                                        {cities.map(c => <Chip key={c._id} label={c.name} sx={{ bgcolor: "#333", color: "white" }} />)}
+                                    </Box>
+                                </Box>
+                            </Box>
                         </Box>
                     )}
 
                     {/* --- TAB 2: ADD THEATRE --- */}
                     {tab === 1 && (
-                        <Box display="flex" flexDirection="column" gap={3}>
-                            <Typography variant="h6">Add Theatre to City</Typography>
+                        <Box maxWidth="600px" mx="auto">
+                            <Typography variant="h5" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
+                                <AddCircleIcon sx={{ color: "#e50914" }} /> Add Theatre
+                            </Typography>
+                            <Box display="flex" flexDirection="column" gap={3}>
+                                <FormControl fullWidth sx={inputStyle}>
+                                    <InputLabel>Select City</InputLabel>
+                                    <Select value={theatreForm.cityId} label="Select City" onChange={handleCitySelect}>
+                                        {cities.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
+                                <TextField label="Theatre Name" value={theatreForm.name} onChange={e => setTheatreForm({ ...theatreForm, name: e.target.value })} fullWidth sx={inputStyle} />
+                                <TextField label="Location / Address" value={theatreForm.location} onChange={e => setTheatreForm({ ...theatreForm, location: e.target.value })} fullWidth sx={inputStyle} />
 
-                            <FormControl fullWidth>
-                                <InputLabel>Select City</InputLabel>
-                                <Select
-                                    value={theatreForm.cityId}
-                                    label="Select City"
-                                    onChange={handleCitySelect}
-                                    defaultValue=""
-                                >
-                                    {cities.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-
-                            <TextField label="Theatre Name" value={theatreForm.name} onChange={e => setTheatreForm({ ...theatreForm, name: e.target.value })} fullWidth />
-                            <TextField label="Location" value={theatreForm.location} onChange={e => setTheatreForm({ ...theatreForm, location: e.target.value })} fullWidth />
-
-                            <Button variant="contained" onClick={handleAddTheatre} sx={{ bgcolor: "#2b2d42" }}>Add Theatre</Button>
+                                <Button variant="contained" size="large" onClick={handleAddTheatre} sx={{ bgcolor: "#e50914", fontWeight: "bold", py: 1.5, "&:hover": { bgcolor: "#b20710" } }}>
+                                    Save Theatre
+                                </Button>
+                            </Box>
                         </Box>
                     )}
 
                     {/* --- TAB 3: ADD SCREEN (Seat Map) --- */}
                     {tab === 2 && (
-                        <Box display="flex" flexDirection="column" gap={3}>
-                            <Typography variant="h6">Add Screen & Layout</Typography>
+                        <Box>
+                            <Typography variant="h5" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
+                                <ChairIcon sx={{ color: "#e50914" }} /> Configure Screen & Seats
+                            </Typography>
 
-                            <Grid container spacing={2}>
-                                <Grid item xs={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Select City First</InputLabel>
-                                        <Select label="Select City First" onChange={handleScreenCitySelect} defaultValue="">
+                            <Grid container spacing={3} mb={3}>
+                                <Grid item xs={12} md={4}>
+                                    <FormControl fullWidth sx={inputStyle}>
+                                        <InputLabel>1. Select City</InputLabel>
+                                        <Select label="1. Select City" onChange={handleScreenCitySelect} defaultValue="">
                                             {cities.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
                                         </Select>
                                     </FormControl>
                                 </Grid>
-                                <Grid item xs={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Select Theatre</InputLabel>
-                                        <Select value={screenForm.theatreId} label="Select Theatre" onChange={e => setScreenForm({ ...screenForm, theatreId: e.target.value })} defaultValue="">
+                                <Grid item xs={12} md={4}>
+                                    <FormControl fullWidth sx={inputStyle}>
+                                        <InputLabel>2. Select Theatre</InputLabel>
+                                        <Select value={screenForm.theatreId} label="2. Select Theatre" onChange={e => setScreenForm({ ...screenForm, theatreId: e.target.value })} defaultValue="">
                                             {theatres.map(t => <MenuItem key={t._id} value={t._id}>{t.name}</MenuItem>)}
                                         </Select>
                                     </FormControl>
                                 </Grid>
+                                <Grid item xs={12} md={4}>
+                                    <TextField label="3. Screen Name (e.g. Audi 1)" value={screenForm.name} onChange={e => setScreenForm({ ...screenForm, name: e.target.value })} fullWidth sx={inputStyle} />
+                                </Grid>
                             </Grid>
 
-                            <TextField label="Screen Name (e.g. Audi 1)" value={screenForm.name} onChange={e => setScreenForm({ ...screenForm, name: e.target.value })} fullWidth />
+                            <Divider sx={{ bgcolor: "#333", my: 3 }} />
 
-                            <Typography variant="subtitle2" color="primary">Design Seat Map:</Typography>
-                            <SeatConfigurator onConfigurationChange={setSeatConfig} />
+                            <Typography variant="h6" color="#e50914" gutterBottom>Seat Layout Designer:</Typography>
+                            <Box border="1px dashed #555" p={2} borderRadius={2} bgcolor="#000">
+                                <SeatConfigurator onConfigurationChange={setSeatConfig} />
+                            </Box>
 
-                            <Button variant="contained" onClick={handleAddScreen} sx={{ bgcolor: "#2b2d42" }}>Save Screen</Button>
+                            <Box mt={3} textAlign="right">
+                                <Button variant="contained" size="large" onClick={handleAddScreen} startIcon={<SaveIcon />} sx={{ bgcolor: "#e50914", fontWeight: "bold", px: 4, py: 1.5, "&:hover": { bgcolor: "#b20710" } }}>
+                                    Save Screen Configuration
+                                </Button>
+                            </Box>
                         </Box>
                     )}
 
                     {/* --- TAB 4: ADD SHOW --- */}
                     {tab === 3 && (
-                        <Box display="flex" flexDirection="column" gap={3}>
-                            <Typography variant="h6">Schedule a Show</Typography>
+                        <Box maxWidth="700px" mx="auto">
+                            <Typography variant="h5" fontWeight="bold" mb={3} display="flex" alignItems="center" gap={1}>
+                                <MovieFilterIcon sx={{ color: "#e50914" }} /> Schedule a Show
+                            </Typography>
+                            <Box display="flex" flexDirection="column" gap={3}>
+                                <FormControl fullWidth sx={inputStyle}>
+                                    <InputLabel>Select Movie</InputLabel>
+                                    <Select value={showForm.movieId} label="Select Movie" onChange={e => setShowForm({ ...showForm, movieId: e.target.value })}>
+                                        {movies.map(m => <MenuItem key={m._id} value={m._id}>{m.title}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
 
-                            {/* Movie Select */}
-                            <FormControl fullWidth>
-                                <InputLabel>Select Movie</InputLabel>
-                                <Select value={showForm.movieId} label="Select Movie" onChange={e => setShowForm({ ...showForm, movieId: e.target.value })} defaultValue="">
-                                    {movies.map(m => <MenuItem key={m._id} value={m._id}>{m.title}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-
-                            {/* City / Theatre / Screen Selection */}
-                            <Typography variant="caption">Select City {'>'} Theatre to find Screens</Typography>
-                            <Grid container spacing={2}>
-                                <Grid item xs={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Filter by City</InputLabel>
-                                        <Select label="Filter by City" onChange={handleScreenCitySelect} defaultValue="">
-                                            {cities.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
-                                        </Select>
-                                    </FormControl>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <FormControl fullWidth sx={inputStyle}>
+                                            <InputLabel>Filter by City</InputLabel>
+                                            <Select label="Filter by City" onChange={handleScreenCitySelect}>
+                                                {cities.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <FormControl fullWidth sx={inputStyle}>
+                                            <InputLabel>Select Theatre</InputLabel>
+                                            <Select label="Select Theatre" onChange={e => {
+                                                const t = theatres.find(th => th._id === e.target.value);
+                                                setScreens(t ? t.screens : []);
+                                            }}>
+                                                {theatres.map(t => <MenuItem key={t._id} value={t._id}>{t.name}</MenuItem>)}
+                                            </Select>
+                                        </FormControl>
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Select Theatre</InputLabel>
-                                        <Select label="Select Theatre" onChange={e => {
-                                            const t = theatres.find(th => th._id === e.target.value);
-                                            setScreens(t ? t.screens : []);
-                                        }} defaultValue="">
-                                            {theatres.map(t => <MenuItem key={t._id} value={t._id}>{t.name}</MenuItem>)}
-                                        </Select>
-                                    </FormControl>
+
+                                <FormControl fullWidth sx={inputStyle}>
+                                    <InputLabel>Select Screen</InputLabel>
+                                    <Select value={showForm.screenId} label="Select Screen" onChange={e => setShowForm({ ...showForm, screenId: e.target.value })}>
+                                        {screens.map(s => <MenuItem key={s._id} value={s._id}>{s.name || "Screen"}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
+
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <TextField
+                                            type="datetime-local"
+                                            label="Show Time"
+                                            InputLabelProps={{ shrink: true }}
+                                            value={showForm.startTime}
+                                            onChange={e => setShowForm({ ...showForm, startTime: e.target.value })}
+                                            fullWidth
+                                            sx={inputStyle}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <TextField
+                                            type="number"
+                                            label="Ticket Price (₹)"
+                                            value={showForm.price}
+                                            onChange={e => setShowForm({ ...showForm, price: e.target.value })}
+                                            fullWidth
+                                            required
+                                            sx={inputStyle}
+                                        />
+                                    </Grid>
                                 </Grid>
-                            </Grid>
 
-                            <FormControl fullWidth>
-                                <InputLabel>Select Screen</InputLabel>
-                                <Select value={showForm.screenId} label="Select Screen" onChange={e => setShowForm({ ...showForm, screenId: e.target.value })} defaultValue="">
-                                    {screens.map(s => <MenuItem key={s._id} value={s._id}>{s.name || "Screen"}</MenuItem>)}
-                                </Select>
-                            </FormControl>
-
-                            <TextField
-                                type="datetime-local"
-                                label="Show Time"
-                                InputLabelProps={{ shrink: true }}
-                                value={showForm.startTime}
-                                onChange={e => setShowForm({ ...showForm, startTime: e.target.value })}
-                                fullWidth
-                            />
-
-                            <TextField
-                                type="number"
-                                label="Ticket Price (Base Price)"
-                                value={showForm.price}
-                                onChange={e => setShowForm({ ...showForm, price: e.target.value })}
-                                fullWidth
-                                required
-                            />
-
-                            <Button variant="contained" onClick={handleAddShow} sx={{ bgcolor: "#e50914" }}>Publish Show</Button>
+                                <Button variant="contained" size="large" onClick={handleAddShow} sx={{ bgcolor: "#e50914", fontWeight: "bold", py: 1.5, mt: 2, "&:hover": { bgcolor: "#b20710" } }}>
+                                    Publish Show Schedule
+                                </Button>
+                            </Box>
                         </Box>
                     )}
 
