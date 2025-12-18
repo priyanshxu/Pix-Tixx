@@ -6,6 +6,7 @@ import InstagramIcon from '@mui/icons-material/Instagram';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import SendIcon from '@mui/icons-material/Send';
 import logo from "../assets/logo.png";
+import { Link as RouterLink } from 'react-router-dom'; // Import RouterLink to prevent page refresh
 
 const Footer = () => {
     return (
@@ -30,27 +31,25 @@ const Footer = () => {
                         </Box>
                     </Grid>
 
-                    {/* Column 2: Quick Links */}
+                    {/* Column 2: Quick Links (Restored) */}
                     <Grid item xs={6} md={2}>
                         <Typography variant="h6" color="white" gutterBottom fontWeight="bold" fontFamily="'Poppins', sans-serif">Company</Typography>
                         <Box display="flex" flexDirection="column" gap={1.5}>
-                            {['About Us', 'Careers', 'Contact Us', 'Press'].map((text) => (
-                                <Link key={text} href="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>
-                                    {text}
-                                </Link>
-                            ))}
+                            <Link component={RouterLink} to="/about" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>About Us</Link>
+                            <Link component={RouterLink} to="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Careers</Link>
+                            <Link component={RouterLink} to="/contact" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Contact Us</Link>
+                            <Link component={RouterLink} to="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Press</Link>
                         </Box>
                     </Grid>
 
-                    {/* Column 3: Support */}
+                    {/* Column 3: Support (Restored) */}
                     <Grid item xs={6} md={2}>
                         <Typography variant="h6" color="white" gutterBottom fontWeight="bold" fontFamily="'Poppins', sans-serif">Support</Typography>
                         <Box display="flex" flexDirection="column" gap={1.5}>
-                            {['Help Center', 'Terms of Use', 'Privacy Policy', 'Refund Policy'].map((text) => (
-                                <Link key={text} href="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>
-                                    {text}
-                                </Link>
-                            ))}
+                            <Link component={RouterLink} to="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Help Center</Link>
+                            <Link component={RouterLink} to="#" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Terms of Use</Link>
+                            <Link component={RouterLink} to="/privacy" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Privacy Policy</Link>
+                            <Link component={RouterLink} to="/refund-policy" color="inherit" underline="none" sx={{ fontFamily: "'Poppins', sans-serif", fontSize: '0.9rem', '&:hover': { color: "#e50914" } }}>Refund Policy</Link>
                         </Box>
                     </Grid>
 
