@@ -10,6 +10,7 @@ import paymentRouter from './routes/payment-routes.js';
 import showRouter from "./routes/show-routes.js";
 import resaleRouter from "./routes/resale-routes.js";
 import { connectRabbitMQ } from "./config/rabbitmq.js";
+import "./workers/emailWorker.js";
 dotenv.config();
 const app = express();
 //middlewares
