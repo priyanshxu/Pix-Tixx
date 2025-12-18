@@ -79,9 +79,12 @@ const Marketplace = () => {
         return typeof ticket.user === 'object' ? ticket.user._id : ticket.user;
     };
 
-    // Filter tickets based on tab
-    const buyableTickets = marketTickets.filter(t => getOwnerId(t) !== userId);
-    const myListings = marketTickets.filter(t => getOwnerId(t) === userId);
+    // --- FIX START ---
+    // Filter tickets based on tab AND check if 'ticket.movie' exists.
+    // If 'ticket.movie' is null (deleted movie), we skip it to prevent the white screen crash.
+    const buyableTickets = marketTickets.filter(t => t.movie && getOwnerId(t) !== userId);
+    const myListings = marketTickets.filter(t => t.movie && getOwnerId(t) === userId);
+    // --- FIX END ---
 
     const TicketCard = ({ ticket, isMyListing }) => (
         <Grid item xs={12} md={6} lg={4} key={ticket._id}>
@@ -99,7 +102,8 @@ const Marketplace = () => {
                 {/* Header Image Area */}
                 <Box sx={{
                     height: 140,
-                    backgroundImage: `url(${ticket.movie.posterUrl})`,
+                    // Safe Check with Optional Chaining (just in case)
+                    backgroundImage: `url(${ticket.movie?.posterUrl || "https://via.placeholder.com/300x150?text=No+Image"})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                     position: 'relative'
@@ -119,7 +123,7 @@ const Marketplace = () => {
                 {/* Content Area */}
                 <Box p={2.5}>
                     <Typography variant="h6" fontWeight="bold" color="white" noWrap mb={0.5}>
-                        {ticket.movie.title}
+                        {ticket.movie?.title || "Unknown Movie"}
                     </Typography>
 
                     <Box display="flex" alignItems="center" gap={1} mb={1} color="#aaa">
