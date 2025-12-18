@@ -13,7 +13,7 @@ const AdminDashboard = () => {
     const [movies, setMovies] = useState([]);
 
     const fetchMovies = () => {
-        axios.get(`${BASE_URL}/movie`)
+        axios.get(`/movie`)
             .then(res => setMovies(res.data.movies))
             .catch(err => console.log(err));
     };
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
         if (!window.confirm("Are you sure you want to delete this movie?")) return;
 
         try {
-            await axios.delete(`${BASE_URL}/movie/${id}`);
+            await axios.delete(`/movie/${id}`);
             fetchMovies(); // Refresh list
             alert("Movie Deleted");
         } catch (err) {

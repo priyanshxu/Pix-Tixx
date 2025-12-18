@@ -1,8 +1,7 @@
 import Bookings from "../models/Bookings.js";
 import User from "../models/User.js";
 import mongoose from "mongoose";
-// Removed direct email imports
-import { producer } from "../config/kafka.js"; // Import Kafka Producer
+import { getChannel, getQueueName } from "../config/rabbitmq.js"; // RabbitMQ Imports
 
 // --- 1. LIST TICKET FOR SALE (Unchanged) ---
 export const listForResale = async (req, res) => {
@@ -40,13 +39,13 @@ export const listForResale = async (req, res) => {
     }
 };
 
-// --- 2. GET MARKETPLACE (Unchanged) ---
+// --- 2. GET MARKETPLACE (RabbitMQ Version) ---
 export const getMarketplace = async (req, res) => {
     try {
         // Fetch all listed tickets
         const tickets = await Bookings.find({ status: "resale_listed" })
             .populate("movie")
-            .populate("user") // Populate user to get email for expiry notification
+            .populate("user")
             .populate({ path: "show", populate: { path: "screen" } })
             .sort({ "resaleDetails.listingDate": -1 });
 
@@ -65,45 +64,34 @@ export const getMarketplace = async (req, res) => {
             }
         }
 
-        // Process Expired Tickets (Update DB + Send Kafka Event)
+        // Process Expired Tickets
         if (expiredTickets.length > 0) {
-            console.log(`[Resale] Found ${expiredTickets.length} expired tickets. Processing...`);
+            console.log(`[Resale] Found ${expiredTickets.length} expired tickets.`);
 
-            // We connect once for the batch
-            await producer.connect();
-
-            const expiryMessages = [];
+            const channel = getChannel();
+            const queue = getQueueName();
 
             for (const ticket of expiredTickets) {
-                // 1. Update DB Status
+                // A. Update DB
                 ticket.status = "unsold";
                 await ticket.save();
 
-                // 2. Prepare Kafka Message
-                if (ticket.user) {
-                    expiryMessages.push({
-                        value: JSON.stringify({
-                            event: 'RESALE_EXPIRED',
-                            userEmail: ticket.user.email,
-                            userName: ticket.user.name,
-                            movieTitle: ticket.movie?.title || "Unknown Movie",
-                            showDate: ticket.show.startTime
-                        })
+                // B. Send to RabbitMQ Queue
+                if (ticket.user && channel) {
+                    const message = JSON.stringify({
+                        event: 'RESALE_EXPIRED',
+                        userEmail: ticket.user.email,
+                        userName: ticket.user.name,
+                        movieTitle: ticket.movie?.title || "Unknown Movie",
+                        showDate: ticket.show.startTime
                     });
+
+                    channel.sendToQueue(queue, Buffer.from(message), { persistent: true });
                 }
             }
-
-            // 3. Send Batch to Kafka
-            if (expiryMessages.length > 0) {
-                await producer.send({
-                    topic: 'ticket-bookings',
-                    messages: expiryMessages
-                });
-                console.log('[Kafka] Sent resale expiry events.');
-            }
+            console.log("✅ Sent expiry events to RabbitMQ");
         }
 
-        // Return only the ACTIVE tickets to the frontend
         return res.status(200).json({ tickets: activeTickets });
 
     } catch (err) {
@@ -112,7 +100,7 @@ export const getMarketplace = async (req, res) => {
     }
 };
 
-// --- 3. BUY RESALE TICKET (Updated for Kafka) ---
+// --- 3. BUY RESALE TICKET (Fixed for RabbitMQ) ---
 export const buyResaleTicket = async (req, res) => {
     const { bookingId, buyerId } = req.body;
     const session = await mongoose.startSession();
@@ -122,7 +110,7 @@ export const buyResaleTicket = async (req, res) => {
         console.log('[resale] starting transaction...');
 
         // Pre-transaction validation
-        let oldBooking = await Bookings.findById(bookingId).populate('show');
+        let oldBooking = await Bookings.findById(bookingId).populate('movie').populate('show'); // Populated movie for notification details
         if (!oldBooking || oldBooking.status !== 'resale_listed') {
             return res.status(400).json({ message: 'Ticket no longer available' });
         }
@@ -135,7 +123,11 @@ export const buyResaleTicket = async (req, res) => {
         // Start transaction
         await session.startTransaction();
 
-        oldBooking = await Bookings.findById(bookingId).populate('show').session(session);
+        // Re-fetch inside session to lock
+        oldBooking = await Bookings.findById(bookingId).session(session);
+        // Note: Mongoose sessions might strip population, so we rely on variables captured before if needed, 
+        // but for updates we must use the session object.
+
         if (!oldBooking || oldBooking.status !== 'resale_listed') {
             throw new Error('Ticket no longer available (post-fetch)');
         }
@@ -184,53 +176,49 @@ export const buyResaleTicket = async (req, res) => {
         transactionCommitted = true;
         console.log('[resale] commit successful');
 
-        // ---------- KAFKA EVENTS (Post-Commit) ----------
+        // ---------- RABBITMQ EVENTS (Post-Commit) ----------
         try {
-            await producer.connect();
+            const channel = getChannel();
+            const queue = getQueueName();
 
-            const messages = [];
-
-            // 1. Event for the BUYER (They need a Ticket PDF)
-            messages.push({
-                value: JSON.stringify({
+            if (channel) {
+                // 1. Event for the BUYER (Needs Ticket PDF)
+                const buyerMessage = JSON.stringify({
                     event: 'RESALE_BUYER_CONFIRMATION',
                     bookingId: newBooking._id, // The NEW booking
                     userId: buyer._id,
                     userEmail: buyer.email
-                })
-            });
+                });
+                channel.sendToQueue(queue, Buffer.from(buyerMessage), { persistent: true });
 
-            // 2. Event for the SELLER (They need a Payout Notification)
-            if (seller) {
-                // We prepare the details here so the worker doesn't have to query the "Old" booking logic
-                const sellerBookingDetails = {
-                    movieTitle: oldBooking?.movie?.title ?? 'Unknown Title', // We can't access deep populate here easily without a query, so we rely on ID or basics
-                    // Or better: Let the worker fetch data if needed, but passing flat data is faster
-                    seats: oldBooking.seatNumber,
-                    bookingId: oldBooking._id.toString().slice(-6).toUpperCase()
-                };
+                // 2. Event for the SELLER (Needs Payout Notification)
+                if (seller) {
+                    // We populated 'movie' in the first query before session, so we can access title
+                    // If population was lost, we fallback to "Unknown Title"
+                    const sellerBookingDetails = {
+                        movieTitle: oldBooking.movie?.title || 'Unknown Title',
+                        seats: oldBooking.seatNumber,
+                        bookingId: oldBooking._id.toString().slice(-6).toUpperCase()
+                    };
 
-                messages.push({
-                    value: JSON.stringify({
+                    const sellerMessage = JSON.stringify({
                         event: 'RESALE_SELLER_NOTIFICATION',
                         sellerEmail: seller.email,
                         sellerName: seller.name,
                         payout: sellerPayout,
                         bookingDetails: sellerBookingDetails
-                    })
-                });
+                    });
+
+                    channel.sendToQueue(queue, Buffer.from(sellerMessage), { persistent: true });
+                }
+
+                console.log('[RabbitMQ] Resale events published');
+            } else {
+                console.error("[RabbitMQ] Channel not active, could not send emails.");
             }
 
-            // Send all events
-            await producer.send({
-                topic: 'ticket-bookings',
-                messages: messages
-            });
-
-            console.log('[Kafka] Resale events published');
-
-        } catch (kafkaErr) {
-            console.error('[resale] Failed to publish Kafka events:', kafkaErr);
+        } catch (queueErr) {
+            console.error('[resale] Failed to publish RabbitMQ events:', queueErr);
             // Non-fatal: Transaction is committed, money is safe. 
         }
         // ------------------------------------------------

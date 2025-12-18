@@ -31,8 +31,8 @@ const UserProfile = () => {
                 // Fetch User Details AND Bookings in parallel
                 const [userRes, bookingRes] = await Promise.all([
                     // Note: Ensure your backend populates the walletBalance field here
-                    axios.get(`${BASE_URL}/user/${userId}`),
-                    axios.get(`${BASE_URL}/user/bookings/${userId}`),
+                    axios.get(`/user/${userId}`),
+                    axios.get(`/user/bookings/${userId}`),
                 ]);
 
                 setUser(userRes.data.user);

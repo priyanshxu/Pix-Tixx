@@ -18,7 +18,7 @@ const MoviePage = () => {
     const [rating, setRating] = useState(0);
 
     useEffect(() => {
-        axios.get(`${BASE_URL}/movie/${id}`)
+        axios.get(`/movie/${id}`)
             .then(res => setMovie(res.data.movie))
             .catch(err => console.log(err))
             .finally(() => setLoading(false));
@@ -29,7 +29,7 @@ const MoviePage = () => {
         if (!userId) return alert("Please login to review");
 
         try {
-            await axios.post(`${BASE_URL}/movie/review/${id}`, { userId, rating, comment });
+            await axios.post(`/movie/review/${id}`, { userId, rating, comment });
             alert("Review added!");
             window.location.reload();
         } catch (err) {

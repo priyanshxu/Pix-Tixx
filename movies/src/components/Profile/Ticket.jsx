@@ -18,7 +18,7 @@ const Ticket = () => {
     useEffect(() => {
         // Fetch this specific booking
         axios
-            .get(`${BASE_URL}/booking/${id}`)
+            .get(`/booking/${id}`)
             .then((res) => {
                 setBooking(res.data.booking);
                 setLoading(false);
@@ -54,7 +54,7 @@ const Ticket = () => {
         try {
             const userId = localStorage.getItem("userId");
             // Call the Resale API
-            const res = await axios.post(`${BASE_URL}/resale/sell`, {
+            const res = await axios.post(`/resale/sell`, {
                 bookingId: booking._id,
                 userId: userId
             });

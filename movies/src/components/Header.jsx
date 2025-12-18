@@ -77,7 +77,7 @@ const Header = (props) => {
         if (isUserLoggedIn) {
             const userId = localStorage.getItem("userId");
             if (userId) {
-                axios.get(`${BASE_URL}/user/${userId}`)
+                axios.get(`/user/${userId}`)
                     .then(res => {
                         const firstName = res.data.user.name.split(" ")[0];
                         setUserName(firstName);

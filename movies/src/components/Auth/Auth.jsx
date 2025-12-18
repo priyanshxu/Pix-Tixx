@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { userActions } from "../../store";
 import axios from "axios";
+
 // Import new UI tools
 import { GlobalLoader, CustomSnackbar } from "../Shared/UI/Feedback";
 
@@ -49,7 +50,7 @@ const Auth = () => {
   const handleSignup = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${BASE_URL}/user/signup`, {
+      const res = await axios.post(`/user/signup`, {
         name: inputs.name,
         email: inputs.email,
         password: inputs.password,
@@ -71,7 +72,7 @@ const Auth = () => {
   const handleOtpVerification = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${BASE_URL}/user/verify`, {
+      const res = await axios.post(`/user/verify`, {
         userId: tempUserId,
         otp: inputs.otp
       });
@@ -91,7 +92,7 @@ const Auth = () => {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      const res = await axios.post(`${BASE_URL}/user/login`, {
+      const res = await axios.post(`/user/login`, {
         email: inputs.email,
         password: inputs.password,
       });

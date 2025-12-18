@@ -17,7 +17,7 @@ const AdminLogin = () => {
     e.preventDefault();
     try {
       // Assuming your backend has this route
-      const res = await axios.post(`${BASE_URL}/admin/config/login`, inputs);
+      const res = await axios.post(`/admin/config/login`, inputs);
 
       if (res.data.token) {
         localStorage.setItem("adminToken", res.data.token);

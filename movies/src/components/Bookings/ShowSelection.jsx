@@ -31,7 +31,7 @@ const ShowSelection = () => {
         const dateStr = selectedDate.toLocaleDateString('en-CA'); // 'en-CA' gives YYYY-MM-DD format consistently
 
         // This endpoint should also return total seat count for the screen
-        axios.get(`http://localhost:5000/admin/config/shows?movieId=${id}&date=${dateStr}&cityId=${cityId}`)
+        axios.get(`/admin/config/shows?movieId=${id}&date=${dateStr}&cityId=${cityId}`)
             .then(res => {
                 const grouped = {};
                 const now = new Date();

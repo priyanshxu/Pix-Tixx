@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, List, ListItem, ListItemText, ListItemButton, CircularProgress, Typography } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import axios from 'axios';
+
 const BASE_URL = process.env.REACT_APP_API_URL
 
 const CityDialog = ({ open, onClose, onSelectCity }) => {
@@ -11,7 +12,7 @@ const CityDialog = ({ open, onClose, onSelectCity }) => {
 
     useEffect(() => {
         // Fetch real cities from the backend
-        axios.get(`${BASE_URL}/admin/config/city`)
+        axios.get("/admin/config/city")
             .then(res => {
                 setCities(res.data.cities || []);
                 setError(null);

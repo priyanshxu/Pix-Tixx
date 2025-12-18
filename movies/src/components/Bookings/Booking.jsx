@@ -30,7 +30,7 @@ const Booking = () => {
   useEffect(() => {
     const fetchShowDetails = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/show/${showId}`);
+        const res = await axios.get(`/show/${showId}`);
         if (res.data.show) {
           setShowDetails(res.data.show);
         } else {

@@ -19,7 +19,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import SeatConfigurator from "./SeatConfigurator";
 
+
 const labelStyle = { mt: 1, mb: 1, fontWeight: "bold", color: "#2b2d42" };
+
 const BASE_URL = process.env.REACT_APP_API_URL
 
 // Reusable Image Upload Component
@@ -132,7 +134,7 @@ const EditMovie = () => {
     useEffect(() => {
         const fetchMovie = async () => {
             try {
-                const res = await axios.get(`${BASE_URL}/movie/${id}`);
+                const res = await axios.get(`/movie/${id}`);
                 const m = res.data.movie;
 
                 setInputs({
@@ -230,7 +232,7 @@ const EditMovie = () => {
         });
 
         try {
-            await axios.put(`${BASE_URL}/movie/${id}`, formData, {
+            await axios.put(`/movie/${id}`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "multipart/form-data",

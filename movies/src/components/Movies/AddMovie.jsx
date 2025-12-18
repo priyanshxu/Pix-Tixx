@@ -158,7 +158,7 @@ const AddMovie = () => {
 
         try {
             // FIX: Changed URL from /movie/add to /movie
-            await axios.post(`${BASE_URL}/movie`, formData, {
+            await axios.post(`/movie`, formData, {
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
             });
             alert("Movie Added Successfully!");

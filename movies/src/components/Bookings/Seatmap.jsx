@@ -20,7 +20,7 @@ const SeatMap = ({ layout, showId, price, onSeatSelect }) => {
                 // API Call to get seats booked for THIS specific show
                 // We will update the backend to support this dedicated showId query
                 const bookedRes = await axios.get(
-                    `http://localhost:5000/booking/booked?showId=${showId}`
+                    `/booking/booked?showId=${showId}`
                 );
                 setBookedSeats(bookedRes.data.bookedSeats || []);
 

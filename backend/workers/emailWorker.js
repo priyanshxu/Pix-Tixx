@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import { consumer } from "../config/kafka.js";
+import { connectRabbitMQ } from "../config/rabbitmq.js";
 
 import Bookings from "../models/Bookings.js";
 import User from "../models/User.js";
@@ -10,87 +10,107 @@ import Screen from "../models/Screen.js";
 import Theatre from "../models/Theatre.js";
 
 import { generateTicketPDF } from "../utils/generateTicket.js";
-// Added sendResaleNotification import
 import { sendTicketEmail, sendResaleNotification, sendResaleExpiryEmail } from "../utils/sendMail.js";
 
 dotenv.config();
 
 const runWorker = async () => {
     console.log("🚀 Worker Starting...");
-    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/pixtix");
+
+    // 1. Connect to MongoDB
+    await mongoose.connect(`mongodb+srv://admin:${process.env.MONGODB_PASSWORD}@cluster0.7i3wdxl.mongodb.net/appName=Cluster0`);
     console.log("✅ Worker connected to MongoDB");
 
-    await consumer.connect();
-    await consumer.subscribe({ topic: 'ticket-bookings', fromBeginning: false });
-    console.log("🎧 Worker listening for 'ticket-bookings'...");
+    // 2. Connect to RabbitMQ
+    const channel = await connectRabbitMQ();
+    const QUEUE_NAME = "ticket_notifications";
 
-    await consumer.run({
-        eachMessage: async ({ topic, partition, message }) => {
-            try {
-                const eventData = JSON.parse(message.value.toString());
-                console.log(`\n📨 Event Received: ${eventData.event}`);
+    if (!channel) {
+        console.error("❌ Worker failed to connect to RabbitMQ. Exiting...");
+        return;
+    }
 
-                // --- CASE 1: Standard Booking OR Resale Buyer (They both need a PDF) ---
-                if (eventData.event === 'BOOKING_CONFIRMED' || eventData.event === 'RESALE_BUYER_CONFIRMATION') {
+    console.log(`🎧 Worker listening on queue: ${QUEUE_NAME}...`);
 
-                    const booking = await Bookings.findById(eventData.bookingId)
-                        .populate("movie")
-                        .populate({
-                            path: "show",
-                            populate: { path: "screen", populate: { path: "theatre" } }
-                        });
+    // 3. Consume Messages
+    channel.consume(QUEUE_NAME, async (data) => {
+        if (!data) return;
 
-                    const user = await User.findById(eventData.userId);
+        try {
+            const eventData = JSON.parse(data.content.toString());
+            console.log(`\n📨 Event Received: ${eventData.event}`);
 
-                    if (!booking || !user) {
-                        console.error("❌ Data not found for booking/user. Skipping.");
-                        return;
-                    }
+            // 🛑 CRITICAL FIX: Wait 2 seconds for DB to finish writing
+            await new Promise(resolve => setTimeout(resolve, 6000));
 
-                    console.log("📄 Generating PDF...");
-                    const pdfBuffer = await generateTicketPDF(booking, booking.movie, user);
+            // --- CASE 1: Standard Booking OR Resale Buyer ---
+            if (eventData.event === 'BOOKING_CONFIRMED' || eventData.event === 'RESALE_BUYER_CONFIRMATION') {
 
-                    const emailDetails = {
-                        movieTitle: booking.movie.title,
-                        date: booking.show.startTime,
-                        seats: booking.seatNumber,
-                        bookingId: booking._id.toString().slice(-6).toUpperCase(),
-                        theatre: `${booking.show.screen.theatre.name}, ${booking.show.screen.name}`
-                    };
+                console.log(`🔍 Fetching Booking ID: ${eventData.bookingId}`);
 
-                    console.log(`📧 Sending Ticket to ${user.email}...`);
-                    await sendTicketEmail(user.email, emailDetails, pdfBuffer);
-                    console.log("✅ Ticket sent!");
+                const booking = await Bookings.findById(eventData.bookingId)
+                    .populate("movie")
+                    .populate({
+                        path: "show",
+                        populate: { path: "screen", populate: { path: "theatre" } }
+                    });
+
+                const userId = eventData.userId || (booking ? booking.user : null);
+                const user = await User.findById(userId);
+
+                if (!booking || !user) {
+                    console.error("❌ Data still not found after wait. Skipping.");
+                    channel.ack(data);
+                    return;
                 }
 
-                // --- CASE 2: Resale Seller Notification (They need a Payout Email) ---
-                else if (eventData.event === 'RESALE_SELLER_NOTIFICATION') {
-                    console.log(`💰 Sending Payout Notification to ${eventData.sellerEmail}...`);
+                console.log("📄 Generating PDF...");
+                const pdfBuffer = await generateTicketPDF(booking, booking.movie, user);
 
-                    // We expect the payload to have all details needed
-                    await sendResaleNotification(
-                        eventData.sellerEmail,
-                        eventData.sellerName,
-                        eventData.bookingDetails, // Object with movieTitle, seats, etc.
-                        eventData.payout
-                    );
-                    console.log("✅ Payout Notification sent!");
-                }
-                else if (eventData.event === 'RESALE_EXPIRED') {
-                    console.log(`⏳ Sending Expiry Notification to ${eventData.userEmail}...`);
-                    await sendResaleExpiryEmail(
-                        eventData.userEmail,
-                        eventData.userName,
-                        eventData.movieTitle,
-                        eventData.showDate
-                    );
-                    console.log("✅ Expiry Email sent!");
-                }
+                const emailDetails = {
+                    movieTitle: booking.movie.title,
+                    date: booking.show.startTime,
+                    seats: booking.seatNumber,
+                    bookingId: booking._id.toString().slice(-6).toUpperCase(),
+                    theatre: `${booking.show.screen.theatre.name}, ${booking.show.screen.name}`
+                };
 
-            } catch (err) {
-                console.error("❌ Error processing message:", err);
+                console.log(`📧 Sending Ticket to ${user.email}...`);
+                await sendTicketEmail(user.email, emailDetails, pdfBuffer);
+                console.log("✅ Ticket sent!");
             }
-        },
+
+            // --- CASE 2: Resale Seller Notification ---
+            else if (eventData.event === 'RESALE_SELLER_NOTIFICATION') {
+                console.log(`💰 Sending Payout Notification to ${eventData.sellerEmail}...`);
+                await sendResaleNotification(
+                    eventData.sellerEmail,
+                    eventData.sellerName,
+                    eventData.bookingDetails,
+                    eventData.payout
+                );
+                console.log("✅ Payout Notification sent!");
+            }
+
+            // --- CASE 3: Resale Expiry Notification ---
+            else if (eventData.event === 'RESALE_EXPIRED') {
+                console.log(`⏳ Sending Expiry Notification to ${eventData.userEmail}...`);
+                await sendResaleExpiryEmail(
+                    eventData.userEmail,
+                    eventData.userName,
+                    eventData.movieTitle,
+                    eventData.showDate
+                );
+                console.log("✅ Expiry Email sent!");
+            }
+
+            // Mark as done
+            channel.ack(data);
+
+        } catch (err) {
+            console.error("❌ Error processing message:", err);
+            channel.ack(data);
+        }
     });
 };
 

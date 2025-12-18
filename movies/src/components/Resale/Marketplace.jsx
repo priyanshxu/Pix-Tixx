@@ -30,7 +30,7 @@ const Marketplace = () => {
 
     const fetchMarket = () => {
         setLoading(true);
-        axios.get(`${BASE_URL}/resale/market`)
+        axios.get(`/resale/market`)
             .then(res => setMarketTickets(res.data.tickets))
             .catch(err => {
                 console.error(err);

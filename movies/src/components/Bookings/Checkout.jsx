@@ -48,7 +48,7 @@ const Checkout = () => {
             return;
         }
         setLoading(true);
-        axios.get(`http://localhost:5000/user/${userId}`)
+        axios.get(`/user/${userId}`)
             .then(res => {
                 setUser(res.data.user);
                 setLoading(false);
@@ -89,7 +89,7 @@ const Checkout = () => {
             // 2. Hold Seats (Only for new bookings)
             let blockId = null;
             if (!isResale) {
-                const holdRes = await axios.post("http://localhost:5000/booking/hold", {
+                const holdRes = await axios.post(`/booking/hold`,{
                     show: showId, seatNumber: selectedSeats, user: userId
                 });
                 blockId = holdRes.data.blockId;
@@ -102,7 +102,7 @@ const Checkout = () => {
                 return showAlert("Razorpay SDK failed.", "error");
             }
 
-            const orderUrl = "http://localhost:5000/payment/create-order";
+            const orderUrl = `/payment/create-order`;
             const { data: order } = await axios.post(orderUrl, { amount: finalAmountToPay });
 
             const options = {
@@ -131,7 +131,7 @@ const Checkout = () => {
 
     const finalizeBooking = async (blockId, paymentId) => {
         try {
-            let endpoint = isResale ? "http://localhost:5000/resale/buy" : "http://localhost:5000/booking";
+            let endpoint = isResale ? `/resale/buy` : `/booking`;
 
             const payload = isResale ? {
                 bookingId: bookingId,

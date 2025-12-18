@@ -3,7 +3,7 @@ import Bookings from "../models/Bookings.js";
 import BlockedSeat from "../models/BlockedSeat.js";
 import Show from "../models/Show.js";
 import User from "../models/User.js";
-import { producer } from "../config/kafka.js"; // Import Kafka Producer
+import { getChannel, getQueueName } from "../config/rabbitmq.js";
 
 // --- 1. HOLD SEATS (unchanged) ---
 export const holdSeats = async (req, res, next) => {
@@ -116,28 +116,29 @@ export const newBooking = async (req, res, next) => {
         await session.commitTransaction();
 
         try {
-            await producer.connect();
-            await producer.send({
-                topic: 'ticket-bookings',
-                messages: [
-                    {
-                        value: JSON.stringify({
-                            event: 'BOOKING_CONFIRMED',
-                            bookingId: booking._id,
-                            userId: existingUser._id,
-                            userEmail: existingUser.email,
-                            movieTitle: existingShow.movie.title,
-                            seatNumber: booking.seatNumber,
-                            date: existingShow.startTime,
-                            theatre: `${existingShow.screen.theatre.name}, ${existingShow.screen.name}`
-                        })
-                    }
-                ]
-            });
-            console.log(`[Kafka] Booking event published for ID: ${booking._id}`);
-        } catch (kafkaErr) {
-            console.error("FAILED to send Kafka event:", kafkaErr);
-            
+            const channel = getChannel();
+            const queue = getQueueName();
+
+            if (channel && user) {
+                // Prepare the payload
+                const message = JSON.stringify({
+                    event: 'BOOKING_CONFIRMED',
+                    bookingId: booking._id,
+                    userId: existingUser._id,
+                    userEmail: existingUser.email,
+                    movieTitle: existingShow.movie.title,
+                    seatNumber: booking.seatNumber,
+                    date: existingShow.startTime,
+                    theatre: `${existingShow.screen.theatre.name}, ${existingShow.screen.name}`
+                });
+
+                // Send to Queue
+                channel.sendToQueue(queue, Buffer.from(message), { persistent: true });
+                console.log("✅ Booking confirmation sent to RabbitMQ");
+            }
+        } catch (err) {
+            // Log error but DO NOT fail the booking response
+            console.error("❌ Failed to queue booking email:", err);
         }
 
     } catch (err) {

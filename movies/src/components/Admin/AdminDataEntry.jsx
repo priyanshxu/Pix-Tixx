@@ -6,6 +6,7 @@ import {
 import axios from 'axios';
 import SeatConfigurator from './SeatConfigurator'; // Re-use your seat tool!
 
+
 const BASE_URL = process.env.REACT_APP_API_URL
 
 const AdminDataEntry = () => {
@@ -30,12 +31,12 @@ const AdminDataEntry = () => {
         fetchMovies();
     }, []);
 
-    const fetchCities = () => axios.get(`${BASE_URL}/admin/config/city`).then(res => setCities(res.data.cities || []));
-    const fetchMovies = () => axios.get(`${BASE_URL}/movie`).then(res => setMovies(res.data.movies || []));
+    const fetchCities = () => axios.get(`/admin/config/city`).then(res => setCities(res.data.cities || []));
+    const fetchMovies = () => axios.get(`/movie`).then(res => setMovies(res.data.movies || []));
 
     const fetchTheatres = (cityId) => {
         if (cityId) {
-            axios.get(`${BASE_URL}/admin/config/city/${cityId}/theatres`)
+            axios.get(`/admin/config/city/${cityId}/theatres`)
                 .then(res => setTheatres(res.data.theatres || []))
                 .catch(err => console.error("Error fetching theatres:", err));
         } else {
@@ -47,7 +48,7 @@ const AdminDataEntry = () => {
 
     const handleAddCity = async () => {
         try {
-            await axios.post(`${BASE_URL}/admin/config/city`, cityForm);
+            await axios.post(`/admin/config/city`, cityForm);
             alert("City Added!");
             fetchCities();
             setCityForm({ name: "", code: "" });
@@ -57,7 +58,7 @@ const AdminDataEntry = () => {
     const handleAddTheatre = async () => {
         if (!theatreForm.cityId) return alert("Please select a city.");
         try {
-            await axios.post(`${BASE_URL}/admin/config/theatre`, theatreForm);
+            await axios.post(`/admin/config/theatre`, theatreForm);
             alert("Theatre Added!");
             setTheatreForm({ name: "", location: "", cityId: "" });
         } catch (err) { alert("Error adding theatre"); }
@@ -67,7 +68,7 @@ const AdminDataEntry = () => {
         if (!screenForm.theatreId) return alert("Please select a theatre.");
         if (seatConfig.length === 0) return alert("Please configure seats");
         try {
-            await axios.post(`${BASE_URL}/admin/config/screen`, {
+            await axios.post(`/admin/config/screen`, {
                 ...screenForm,
                 seatConfiguration: seatConfig
             });
@@ -81,7 +82,7 @@ const AdminDataEntry = () => {
         if (!showForm.screenId || !showForm.movieId) return alert("Movie and Screen are required.");
         if (!showForm.startTime) return alert("Show time is required.");
         try {
-            await axios.post(`${BASE_URL}/admin/config/show`, showForm);
+            await axios.post(`/admin/config/show`, showForm);
             alert("Show Created Successfully!");
             setShowForm({ movieId: "", screenId: "", startTime: "", price: "" });
         } catch (err) { alert("Error creating show"); }
