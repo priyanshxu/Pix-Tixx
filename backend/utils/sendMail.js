@@ -4,17 +4,24 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Generic Sender Function (Uses Brevo HTTP API)
-const sendEmailViaBrevo = async (toEmail, subject, htmlContent, attachments = []) => {
+const sendEmailViaBrevo = async (toEmail, subject, htmlContent, attachments = null) => {
   try {
+    // 1. Build the basic payload
+    const payload = {
+      sender: { name: "Pix-Tix Support", email: process.env.EMAIL_USER }, // Must be your verified login email on Brevo
+      to: [{ email: toEmail }],
+      subject: subject,
+      htmlContent: htmlContent,
+    };
+
+    // 2. ⚡ CRITICAL FIX: Only add 'attachment' key if it exists and is not empty
+    if (attachments && attachments.length > 0) {
+      payload.attachment = attachments;
+    }
+
     const response = await axios.post(
       'https://api.brevo.com/v3/smtp/email',
-      {
-        sender: { name: "Pix-Tix Support", email: process.env.EMAIL_USER }, // Must be your verified login email on Brevo
-        to: [{ email: toEmail }],
-        subject: subject,
-        htmlContent: htmlContent,
-        attachment: attachments
-      },
+      payload,
       {
         headers: {
           'api-key': process.env.BREVO_API_KEY,
@@ -43,6 +50,7 @@ export const sendOtpEmail = async (email, otp) => {
         <p>This code expires in 10 minutes.</p>
       </div>
     `;
+  // No attachment passed here, so payload will be clean
   return sendEmailViaBrevo(email, 'Verify Your Account - Pix-Tix', html);
 };
 
