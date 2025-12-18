@@ -5,8 +5,8 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import StorefrontIcon from '@mui/icons-material/Storefront';
-import MenuIcon from '@mui/icons-material/Menu'; // Hamburger Icon
-import CloseIcon from '@mui/icons-material/Close'; // Close Icon
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import MovieIcon from '@mui/icons-material/Movie';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LoginIcon from '@mui/icons-material/Login';
@@ -80,14 +80,14 @@ const Header = (props) => {
         if (isUserLoggedIn) {
             const userId = localStorage.getItem("userId");
             if (userId) {
-                // Use VITE_API_URL logic here if you updated index.js, or direct .env access
-                const API_URL = import.meta.env.REACT_APP_API_URL || "http://localhost:5000";
-                axios.get(`${API_URL}/user/${userId}`)
+                // ✅ FIX: Removed manual URL. Now uses axios default base URL (set in index.js)
+                // This prevents the double slash // error.
+                axios.get(`/user/${userId}`)
                     .then(res => {
                         const firstName = res.data.user.name.split(" ")[0];
                         setUserName(firstName);
                     })
-                    .catch(e => console.log(e));
+                    .catch(e => console.log("User fetch failed:", e));
             }
         }
     }, [isUserLoggedIn]);
@@ -179,8 +179,6 @@ const Header = (props) => {
         </Box>
     );
 
-    // ✅ FIX: Separated AppBar and Drawer. 
-    // AppBar is inside HideOnScroll. Drawer is outside.
     return (
         <>
             <HideOnScroll {...props}>
@@ -279,7 +277,7 @@ const Header = (props) => {
                 </AppBar>
             </HideOnScroll>
 
-            {/* MOBILE DRAWER (Moved Outside) */}
+            {/* MOBILE DRAWER */}
             <Box component="nav">
                 <Drawer
                     variant="temporary"
