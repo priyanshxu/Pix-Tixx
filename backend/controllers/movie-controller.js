@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import Movie from '../models/Movie.js';
 import mongoose from 'mongoose';
 import Admin from '../models/Admin.js';
-import User from '../models/User.js'; // Required for Reviews
+import User from '../models/User.js';
 
 // --- ADD MOVIE ---
 export const addMovie = async (req, res, next) => {
@@ -23,18 +23,20 @@ export const addMovie = async (req, res, next) => {
     }
 
     // 3. HANDLE FILE UPLOADS
+    // req.files comes from Multer + Cloudinary
     const posterFiles = req.files['poster'];
     const bannerFiles = req.files['banner'];
-    const castFiles = req.files['castImages'] || []; // Array of cast images
+    const castFiles = req.files['castImages'] || [];
 
     if (!posterFiles || posterFiles.length === 0) {
         return res.status(400).json({ message: "Poster image is required" });
     }
 
-    // Construct URLs
-    const finalPosterUrl = `${req.protocol}://${req.get('host')}/uploads/${posterFiles[0].filename}`;
+    // ✅ FIX: Use .path directly (It contains the full Cloudinary URL)
+    const finalPosterUrl = posterFiles[0].path;
+
     const finalFeaturedUrl = bannerFiles && bannerFiles.length > 0
-        ? `${req.protocol}://${req.get('host')}/uploads/${bannerFiles[0].filename}`
+        ? bannerFiles[0].path // ✅ Use .path
         : "";
 
     // 4. EXTRACT & PARSE DATA
@@ -48,23 +50,20 @@ export const addMovie = async (req, res, next) => {
         seatConfiguration = req.body.seatConfiguration;
     }
 
-    // PARSE CAST (Array of objects with name)
+    // PARSE CAST
     let castData = [];
     try {
-        castData = JSON.parse(req.body.cast); // Expecting [{name: "Actor1"}, {name: "Actor2"}]
+        castData = JSON.parse(req.body.cast);
     } catch (e) {
         castData = [];
     }
 
     // MAP IMAGES TO CAST
-    // We assume the order of files in 'castImages' matches the order of actors in 'cast' JSON
-    // OR we iterate and assign if available.
     const finalCast = castData.map((actor, index) => {
         return {
             name: actor.name,
-            imageUrl: castFiles[index]
-                ? `${req.protocol}://${req.get('host')}/uploads/${castFiles[index].filename}`
-                : "" // Handle case with no image
+            // ✅ FIX: Use .path for cast images too
+            imageUrl: castFiles[index] ? castFiles[index].path : ""
         };
     });
 
@@ -85,7 +84,7 @@ export const addMovie = async (req, res, next) => {
             description,
             releaseDate: new Date(`${releaseDate}`),
             featured,
-            cast: finalCast, // Use the new structure
+            cast: finalCast,
             posterUrl: finalPosterUrl,
             featuredUrl: finalFeaturedUrl,
             admin: adminId,
@@ -131,11 +130,12 @@ export const updateMovie = async (req, res, next) => {
         trailerUrl
     };
 
+    // ✅ FIX: Use .path directly for updates as well
     if (posterFiles && posterFiles.length > 0) {
-        updateData.posterUrl = `${req.protocol}://${req.get('host')}/uploads/${posterFiles[0].filename}`;
+        updateData.posterUrl = posterFiles[0].path;
     }
     if (bannerFiles && bannerFiles.length > 0) {
-        updateData.featuredUrl = `${req.protocol}://${req.get('host')}/uploads/${bannerFiles[0].filename}`;
+        updateData.featuredUrl = bannerFiles[0].path;
     }
 
     // Parse JSON fields safely

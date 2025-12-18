@@ -17,7 +17,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'pix-tix-movies', // Keeping movie uploads in their own folder
+        folder: 'pix-tix-movies',
         allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
     }
 });
@@ -32,7 +32,6 @@ movieRouter.get("/:id", getMoviebyId);
 movieRouter.post("/review/:id", addReview);
 
 // Update: Accept 2 files (poster & banner) + Cast images
-// Multer will now upload these straight to Cloudinary and put the URL in req.files
 movieRouter.post("/", upload.fields([
     { name: 'poster', maxCount: 1 },
     { name: 'banner', maxCount: 1 },
