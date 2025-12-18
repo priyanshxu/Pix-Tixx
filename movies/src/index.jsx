@@ -9,9 +9,15 @@ import { store } from './store';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-// Safe check for the environment variable
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// --- FIX START ---
+// Check Vite's native env AND the old standard, then fallback to localhost
+const BASE_URL = import.meta.env.REACT_APP_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 axios.defaults.baseURL = BASE_URL;
+
+// Optional: Log this so you can debug in the browser console
+console.log("🚀 Frontend connected to:", BASE_URL);
+// --- FIX END ---
 
 root.render(
   <React.StrictMode>
