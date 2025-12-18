@@ -5,6 +5,9 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import SeatConfigurator from './SeatConfigurator';
+import { CustomSnackbar } from '../Shared/UI/Feedback'; // Import the custom feedback component
+
+// Icons
 import LocationCityIcon from '@mui/icons-material/LocationCity';
 import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
 import ChairIcon from '@mui/icons-material/Chair';
@@ -14,6 +17,9 @@ import SaveIcon from '@mui/icons-material/Save';
 
 const AdminDataEntry = () => {
     const [tab, setTab] = useState(0);
+
+    // --- ALERT STATE (Replaces window.alert) ---
+    const [alertInfo, setAlertInfo] = useState({ open: false, message: "", severity: "info" });
 
     // --- STATE FOR DATA FETCHING ---
     const [cities, setCities] = useState([]);
@@ -47,47 +53,64 @@ const AdminDataEntry = () => {
         }
     };
 
-    // --- HANDLERS ---
+    // --- HELPER: SHOW ALERT ---
+    const showAlert = (message, severity = "success") => {
+        setAlertInfo({ open: true, message, severity });
+    };
+
+    const handleCloseAlert = () => {
+        setAlertInfo({ ...alertInfo, open: false });
+    };
+
+    // --- HANDLERS (Updated to use showAlert) ---
     const handleAddCity = async () => {
         try {
             await axios.post(`/admin/config/city`, cityForm);
-            alert("City Added!");
+            showAlert("City Added Successfully!", "success");
             fetchCities();
             setCityForm({ name: "", code: "" });
-        } catch (err) { alert("Error adding city"); }
+        } catch (err) {
+            showAlert("Error adding city. Please try again.", "error");
+        }
     };
 
     const handleAddTheatre = async () => {
-        if (!theatreForm.cityId) return alert("Please select a city.");
+        if (!theatreForm.cityId) return showAlert("Please select a city.", "warning");
         try {
             await axios.post(`/admin/config/theatre`, theatreForm);
-            alert("Theatre Added!");
+            showAlert("Theatre Added Successfully!", "success");
             setTheatreForm({ name: "", location: "", cityId: "" });
-        } catch (err) { alert("Error adding theatre"); }
+        } catch (err) {
+            showAlert("Error adding theatre.", "error");
+        }
     };
 
     const handleAddScreen = async () => {
-        if (!screenForm.theatreId) return alert("Please select a theatre.");
-        if (seatConfig.length === 0) return alert("Please configure seats");
+        if (!screenForm.theatreId) return showAlert("Please select a theatre.", "warning");
+        if (seatConfig.length === 0) return showAlert("Please configure the seat layout.", "warning");
         try {
             await axios.post(`/admin/config/screen`, {
                 ...screenForm,
                 seatConfiguration: seatConfig
             });
-            alert("Screen & Layout Added!");
+            showAlert("Screen & Seat Layout Added!", "success");
             setScreenForm({ name: "", theatreId: "" });
             setSeatConfig([]);
-        } catch (err) { alert("Error adding screen"); }
+        } catch (err) {
+            showAlert("Error adding screen.", "error");
+        }
     };
 
     const handleAddShow = async () => {
-        if (!showForm.screenId || !showForm.movieId) return alert("Movie and Screen are required.");
-        if (!showForm.startTime) return alert("Show time is required.");
+        if (!showForm.screenId || !showForm.movieId) return showAlert("Movie and Screen are required.", "warning");
+        if (!showForm.startTime) return showAlert("Show time is required.", "warning");
         try {
             await axios.post(`/admin/config/show`, showForm);
-            alert("Show Created Successfully!");
+            showAlert("Show Schedule Published Successfully!", "success");
             setShowForm({ movieId: "", screenId: "", startTime: "", price: "" });
-        } catch (err) { alert("Error creating show"); }
+        } catch (err) {
+            showAlert("Error creating show.", "error");
+        }
     };
 
     const handleCitySelect = (e) => {
@@ -111,12 +134,20 @@ const AdminDataEntry = () => {
         },
         "& .MuiSelect-icon": { color: "white" },
         "& input[type='datetime-local']::-webkit-calendar-picker-indicator": {
-            filter: "invert(1)" // Inverts calendar icon color for dark mode
+            filter: "invert(1)"
         }
     };
 
     return (
         <Box minHeight="100vh" bgcolor="#0a0a0a" py={5} fontFamily="'Poppins', sans-serif">
+            {/* Inject the Custom Snackbar Here */}
+            <CustomSnackbar
+                open={alertInfo.open}
+                message={alertInfo.message}
+                severity={alertInfo.severity}
+                onClose={handleCloseAlert}
+            />
+
             <Container maxWidth="lg">
                 <Box textAlign="center" mb={5}>
                     <Typography variant="h3" fontWeight="bold" color="#e50914" sx={{ textShadow: "0 0 10px rgba(229, 9, 20, 0.4)" }}>
