@@ -6,18 +6,22 @@ const MovieItem = ({ title, releaseDate, posterUrl, id }) => {
   return (
     <Card
       sx={{
-        width: 260,
+        // 1. MAKE WIDTH FLUID & CENTERED
+        width: "100%",
+        maxWidth: 280, // Keeps the card from getting too huge on tablets
+        margin: "auto", // Centers the card in its grid cell
         borderRadius: 5,
-        // GLASSMORPHISM STYLES
-        background: "rgba(255, 255, 255, 0.05)", // Very sheer white
-        backdropFilter: "blur(10px)",            // The "Frost" effect
-        border: "1px solid rgba(255, 255, 255, 0.1)", // Subtle border
+
+        // GLASSMORPHISM STYLES (Kept as is)
+        background: "rgba(255, 255, 255, 0.05)",
+        backdropFilter: "blur(10px)",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
         boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
-        color: "white", // Force text white
+        color: "white",
         transition: "all 0.3s ease-in-out",
         ":hover": {
           transform: "translateY(-10px)",
-          boxShadow: "0 15px 40px rgba(229, 9, 20, 0.4)", // Red glow on hover
+          boxShadow: "0 15px 40px rgba(229, 9, 20, 0.4)",
           border: "1px solid rgba(229, 9, 20, 0.5)",
         },
       }}

@@ -203,31 +203,24 @@ const HomePage = () => {
                         </Container>
                     </Box>
 
-                    {/* --- LATEST RELEASES SECTION --- */}
-                    <Container maxWidth="xl" sx={{ paddingY: 6, bgcolor: '#000' }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={4} px={{ xs: 1, md: 3 }}>
-                            <Typography
-                                variant={isMobile ? "h5" : "h4"}
-                                fontWeight="700"
-                                color="white"
-                                sx={{ borderLeft: "5px solid #e50914", pl: 2, fontFamily: "'Poppins', sans-serif" }}
-                            >
+                    {/* --- LATEST RELEASES SECTION (UPDATED FOR RESPONSIVENESS) --- */}
+                    <Container maxWidth="xl" sx={{ paddingY: 8 }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={5} px={2}>
+                            <Typography variant="h4" fontWeight="700" color="white" sx={{ borderLeft: "5px solid #e50914", pl: 2, textShadow: "0 0 10px rgba(255,255,255,0.1)" }}>
                                 Latest Releases
                             </Typography>
-
-                            <Button
-                                LinkComponent={Link}
-                                to="/movies"
-                                sx={{ color: "#e50914", fontWeight: 'bold', textTransform: 'none', fontFamily: "'Poppins', sans-serif" }}
-                            >
-                                View All &rarr;
-                            </Button>
+                            {!isMobile && (
+                                <Button LinkComponent={Link} to="/movies" sx={{ color: "#e50914", fontWeight: 'bold', fontSize: "1rem" }}>
+                                    View All Movies &rarr;
+                                </Button>
+                            )}
                         </Box>
 
-                        {/* RESPONSIVE GRID SYSTEM */}
-                        <Grid container spacing={3} justifyContent="center">
-                            {movies && movies.slice(0, 8).map((movie, index) => (
-                                <Grid item key={index} xs={6} sm={4} md={3} lg={2.4}>
+                        {/* REPLACED BOX WITH GRID CONTAINER */}
+                        <Grid container spacing={4} justifyContent="center">
+                            {movies && movies.slice(0, 4).map((movie, index) => (
+                               
+                                <Grid item key={index} xs={12} sm={6} md={3}>
                                     <MovieItem
                                         id={movie._id}
                                         title={movie.title}
@@ -237,6 +230,14 @@ const HomePage = () => {
                                 </Grid>
                             ))}
                         </Grid>
+
+                        {isMobile && (
+                            <Box display="flex" justifyContent="center" marginTop={6}>
+                                <Button LinkComponent={Link} to="/movies" variant='outlined' sx={{ color: "white", borderColor: "white", borderRadius: 20, px: 4 }}>
+                                    View All Movies
+                                </Button>
+                            </Box>
+                        )}
                     </Container>
                 </>
             )}
