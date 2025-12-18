@@ -1,4 +1,4 @@
-import { Box, Button, Typography, Container, useTheme, useMediaQuery, IconButton } from '@mui/material';
+import { Box, Button, Typography, Container, useTheme, useMediaQuery, IconButton, Grid, Paper } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import MovieItem from './Movies/MovieItem';
 import { Link, useNavigate } from 'react-router-dom';
@@ -7,14 +7,14 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { GlobalLoader } from './Shared/UI/Feedback'; // Assuming you have this from previous steps
+import { GlobalLoader } from './Shared/UI/Feedback';
 
 const HomePage = () => {
     const [movies, setMovies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentSlide, setCurrentSlide] = useState(0);
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Changed breakpoint check
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -25,11 +25,10 @@ const HomePage = () => {
     }, []);
 
     // --- CAROUSEL LOGIC ---
-    // Auto-slide every 5 seconds
     useEffect(() => {
         if (movies.length === 0) return;
         const interval = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % Math.min(movies.length, 5)); // Cycle top 5 movies
+            setCurrentSlide((prev) => (prev + 1) % Math.min(movies.length, 5));
         }, 6000);
         return () => clearInterval(interval);
     }, [movies]);
@@ -42,7 +41,6 @@ const HomePage = () => {
         setCurrentSlide((prev) => (prev - 1 + Math.min(movies.length, 5)) % Math.min(movies.length, 5));
     };
 
-    // Get the movie to display based on current slide index
     const featuredMovie = movies.length > 0 ? movies[currentSlide] : null;
 
     return (
@@ -54,15 +52,13 @@ const HomePage = () => {
                     {/* --- HERO SLIDER SECTION --- */}
                     <Box
                         width={"100%"}
-                        height={"90vh"}
+                        height={{ xs: "70vh", md: "90vh" }} // Smaller height on mobile
                         position="relative"
-                        sx={{
-                            overflow: 'hidden', // Hide scrollbars during transition
-                        }}
+                        sx={{ overflow: 'hidden' }}
                     >
-                        {/* Background Image with Transition */}
+                        {/* Background Image */}
                         <Box
-                            key={featuredMovie._id} // Key triggers re-render animation
+                            key={featuredMovie._id}
                             width={"100%"}
                             height={"100%"}
                             sx={{
@@ -70,7 +66,7 @@ const HomePage = () => {
                                 backgroundPosition: 'center top',
                                 backgroundSize: 'cover',
                                 backgroundRepeat: 'no-repeat',
-                                animation: 'fadeIn 1s ease-in-out', // Smooth Fade In
+                                animation: 'fadeIn 1s ease-in-out',
                                 '@keyframes fadeIn': {
                                     '0%': { opacity: 0.4, transform: 'scale(1.05)' },
                                     '100%': { opacity: 1, transform: 'scale(1)' },
@@ -78,66 +74,26 @@ const HomePage = () => {
                             }}
                         />
 
-                        {/* Gradient Overlay */}
+                        {/* Stronger Gradient Overlay for Readability */}
                         <Box
                             sx={{
                                 position: 'absolute',
                                 top: 0, left: 0, width: '100%', height: '100%',
-                                background: 'linear-gradient(to top, #000000 10%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.2) 100%)'
+                                background: 'linear-gradient(to top, #000000 5%, rgba(0,0,0,0.9) 25%, rgba(0,0,0,0.1) 100%)'
                             }}
                         />
 
-                        {/* Navigation Arrows (Desktop Only) */}
+                        {/* Navigation Arrows (Hidden on Mobile) */}
                         {!isMobile && (
                             <>
-                                <IconButton
-                                    onClick={handlePrev}
-                                    sx={{
-                                        position: 'absolute', left: 20, top: '50%', color: 'white',
-                                        bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: '#e50914' },
-                                        zIndex: 3
-                                    }}
-                                >
+                                <IconButton onClick={handlePrev} sx={{ position: 'absolute', left: 20, top: '50%', color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: '#e50914' }, zIndex: 3 }}>
                                     <ArrowBackIosNewIcon />
                                 </IconButton>
-                                <IconButton
-                                    onClick={handleNext}
-                                    sx={{
-                                        position: 'absolute', right: 20, top: '50%', color: 'white',
-                                        bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: '#e50914' },
-                                        zIndex: 3
-                                    }}
-                                >
+                                <IconButton onClick={handleNext} sx={{ position: 'absolute', right: 20, top: '50%', color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: '#e50914' }, zIndex: 3 }}>
                                     <ArrowForwardIosIcon />
                                 </IconButton>
                             </>
                         )}
-
-                        {/* Slide Indicators (Dots) */}
-                        <Box
-                            position="absolute"
-                            bottom={30}
-                            width="100%"
-                            display="flex"
-                            justifyContent="center"
-                            gap={1}
-                            zIndex={3}
-                        >
-                            {movies.slice(0, 5).map((_, index) => (
-                                <Box
-                                    key={index}
-                                    onClick={() => setCurrentSlide(index)}
-                                    sx={{
-                                        width: index === currentSlide ? 30 : 10,
-                                        height: 10,
-                                        borderRadius: 5,
-                                        bgcolor: index === currentSlide ? '#e50914' : 'rgba(255,255,255,0.5)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s ease'
-                                    }}
-                                />
-                            ))}
-                        </Box>
 
                         {/* Text Content */}
                         <Container
@@ -148,27 +104,29 @@ const HomePage = () => {
                                 zIndex: 2,
                                 display: "flex",
                                 flexDirection: "column",
-                                justifyContent: "center"
+                                justifyContent: "center",
+                                alignItems: { xs: "center", md: "flex-start" }, // Center on mobile
+                                height: "100%"
                             }}
                         >
-                            <Box maxWidth="700px" sx={{ ml: { xs: 0, md: 4 }, textAlign: { xs: 'center', md: 'left' } }}>
+                            <Box maxWidth="700px" sx={{ ml: { xs: 0, md: 4 }, textAlign: { xs: 'center', md: 'left' }, px: 2 }}>
                                 <Typography
                                     variant="overline"
                                     color="#e50914"
                                     fontWeight="bold"
                                     letterSpacing={2}
                                     sx={{
-                                        mb: 2,
+                                        mb: 1,
                                         borderLeft: { xs: 0, md: "4px solid #e50914" },
                                         pl: { xs: 0, md: 2 },
                                         background: "rgba(0,0,0,0.6)",
                                         backdropFilter: "blur(4px)",
-                                        padding: "5px 10px",
+                                        padding: "4px 8px",
                                         borderRadius: "4px",
                                         display: "inline-block"
                                     }}
                                 >
-                                    #{currentSlide + 1} FEATURED MOVIE
+                                    #{currentSlide + 1} TRENDING
                                 </Typography>
 
                                 <Typography
@@ -177,14 +135,10 @@ const HomePage = () => {
                                     color="white"
                                     sx={{
                                         textTransform: 'uppercase',
-                                        lineHeight: 0.9,
-                                        mb: 3,
+                                        lineHeight: 1,
+                                        mb: 2,
                                         textShadow: "0 10px 30px rgba(0,0,0,0.9)",
-                                        animation: "slideUp 0.8s ease-out",
-                                        '@keyframes slideUp': {
-                                            '0%': { transform: 'translateY(20px)', opacity: 0 },
-                                            '100%': { transform: 'translateY(0)', opacity: 1 }
-                                        }
+                                        fontFamily: "'Poppins', sans-serif"
                                     }}
                                 >
                                     {featuredMovie.title}
@@ -195,13 +149,14 @@ const HomePage = () => {
                                     color="#ccc"
                                     sx={{
                                         opacity: 0.9,
-                                        mb: 4,
+                                        mb: 3,
+                                        fontSize: { xs: "0.9rem", md: "1.2rem" },
                                         fontWeight: 300,
-                                        textShadow: "2px 2px 4px black",
                                         display: '-webkit-box',
                                         overflow: 'hidden',
                                         WebkitBoxOrient: 'vertical',
                                         WebkitLineClamp: 3,
+                                        fontFamily: "'Poppins', sans-serif"
                                     }}
                                 >
                                     {featuredMovie.description}
@@ -216,94 +171,72 @@ const HomePage = () => {
                                             bgcolor: "#e50914",
                                             color: "white",
                                             fontWeight: 'bold',
-                                            padding: '12px 35px',
                                             borderRadius: '50px',
+                                            px: 4,
                                             boxShadow: "0 0 20px rgba(229,9,20,0.6)",
-                                            transition: "0.3s",
-                                            '&:hover': { bgcolor: "#b20710", transform: "scale(1.05)" }
+                                            '&:hover': { bgcolor: "#b20710" }
                                         }}
                                         startIcon={<ConfirmationNumberIcon />}
                                     >
-                                        Book Ticket
+                                        Book Now
                                     </Button>
 
-                                    <Button
-                                        variant="outlined"
-                                        size="large"
-                                        sx={{
-                                            color: "white",
-                                            borderColor: "white",
-                                            fontWeight: 'bold',
-                                            padding: '12px 30px',
-                                            borderRadius: '50px',
-                                            backdropFilter: "blur(5px)",
-                                            '&:hover': { borderColor: "#e50914", color: "#e50914" }
-                                        }}
-                                        startIcon={<PlayArrowIcon />}
-                                    >
-                                        Trailer
-                                    </Button>
+                                    {!isMobile && (
+                                        <Button
+                                            variant="outlined"
+                                            size="large"
+                                            sx={{
+                                                color: "white",
+                                                borderColor: "white",
+                                                fontWeight: 'bold',
+                                                borderRadius: '50px',
+                                                px: 4,
+                                                '&:hover': { borderColor: "#e50914", color: "#e50914" }
+                                            }}
+                                            startIcon={<PlayArrowIcon />}
+                                        >
+                                            Trailer
+                                        </Button>
+                                    )}
                                 </Box>
                             </Box>
                         </Container>
                     </Box>
 
                     {/* --- LATEST RELEASES SECTION --- */}
-                    <Container maxWidth="xl" sx={{ paddingY: 8 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={5} px={2}>
+                    <Container maxWidth="xl" sx={{ paddingY: 6, bgcolor: '#000' }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={4} px={{ xs: 1, md: 3 }}>
                             <Typography
-                                variant="h4"
+                                variant={isMobile ? "h5" : "h4"}
                                 fontWeight="700"
                                 color="white"
-                                sx={{
-                                    borderLeft: "5px solid #e50914",
-                                    pl: 2,
-                                    textShadow: "0 0 10px rgba(255,255,255,0.1)"
-                                }}
+                                sx={{ borderLeft: "5px solid #e50914", pl: 2, fontFamily: "'Poppins', sans-serif" }}
                             >
                                 Latest Releases
                             </Typography>
 
-                            {!isMobile && (
-                                <Button
-                                    LinkComponent={Link}
-                                    to="/movies"
-                                    sx={{ color: "#e50914", fontWeight: 'bold', fontSize: "1rem" }}
-                                >
-                                    View All Movies &rarr;
-                                </Button>
-                            )}
+                            <Button
+                                LinkComponent={Link}
+                                to="/movies"
+                                sx={{ color: "#e50914", fontWeight: 'bold', textTransform: 'none', fontFamily: "'Poppins', sans-serif" }}
+                            >
+                                View All &rarr;
+                            </Button>
                         </Box>
 
-                        <Box
-                            display="flex"
-                            justifyContent="center"
-                            flexWrap="wrap"
-                            gap={5}
-                        >
-                            {movies && movies.slice(0, 4).map((movie, index) => (
-                                <MovieItem
-                                    key={index}
-                                    id={movie._id}
-                                    title={movie.title}
-                                    posterUrl={movie.posterUrl}
-                                    releaseDate={movie.releaseDate}
-                                />
+                        {/* RESPONSIVE GRID SYSTEM */}
+                        <Grid container spacing={3} justifyContent="center">
+                            {movies && movies.slice(0, 8).map((movie, index) => (
+                                <Grid item key={index} xs={6} sm={4} md={3} lg={2.4}>
+                                    <MovieItem
+                                        id={movie._id}
+                                        title={movie.title}
+                                        posterUrl={movie.posterUrl}
+                                        releaseDate={movie.releaseDate}
+                                    />
+                                </Grid>
                             ))}
-                        </Box>
-
-                        {isMobile && (
-                            <Box display="flex" justifyContent="center" marginTop={6}>
-                                <Button
-                                    LinkComponent={Link}
-                                    to="/movies"
-                                    variant='outlined'
-                                    sx={{ color: "white", borderColor: "white", borderRadius: 20, px: 4 }}
-                                >
-                                    View All Movies
-                                </Button>
-                            </Box>
-                        )}
+                        </Grid>
                     </Container>
                 </>
             )}
