@@ -1,41 +1,53 @@
 import mongoose from "mongoose";
 
 const movieSchema = new mongoose.Schema({
-    title:{
+    title: {
         type: String,
         required: true,
     },
-    description:{
+    description: {
         type: String,
         required: true,
     },
+    // 🆕 NEW FIELDS
+    genre: [{ type: String, required: true }], // e.g., ["Action", "Sci-Fi"]
+    director: { type: String, required: true },
+    runtime: { type: Number, required: true }, // In Minutes
+    language: { type: String, required: true },
+    censorRating: { type: String, required: true }, // e.g., "U/A", "A", "PG-13"
+
     trailerUrl: { type: String },
-    actors : [{type: String, required: true}],
-    releaseDate:{
+    releaseDate: {
         type: Date,
         required: true,
     },
-    posterUrl:{
+    posterUrl: {
         type: String,
         required: true,
     },
+    featuredUrl: { type: String },
+
+    // Cast with Images
     cast: [{
         name: String,
         imageUrl: String
     }],
-    featured:{
+
+    // Legacy actors field (optional, can be derived from cast)
+    actors: [{ type: String }],
+
+    featured: {
         type: Boolean,
         required: true,
     },
-    bookings:[ { type: mongoose.Types.ObjectId, ref: "Booking"}],
-    admin:{
+    bookings: [{ type: mongoose.Types.ObjectId, ref: "Booking" }],
+    admin: {
         type: mongoose.Types.ObjectId,
-        ref : "Admin",
+        ref: "Admin",
         required: true,
     },
-    featuredUrl: { type: String }, 
     seatConfiguration: {
-        type: [ 
+        type: [
             {
                 rowLabel: String,
                 seats: [Number],
@@ -49,8 +61,14 @@ const movieSchema = new mongoose.Schema({
         userName: String,
         rating: Number,
         comment: String,
-        date: { type: Date, default: Date.now }
-    }]
+        date: { type: Date, default: Date.now },
+        sentimentScore: { type: Number, default: 0 }
+    }],
+    // 🧠 For AI Search
+    plot_embedding: {
+        type: [Number],
+        index: "vector"
+    }
 });
 
-export default mongoose.model("Movie",movieSchema);
+export default mongoose.model("Movie", movieSchema);

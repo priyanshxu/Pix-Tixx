@@ -1,4 +1,4 @@
-import { Box, Button, Typography, Container, useTheme, useMediaQuery, IconButton, Grid, Paper } from '@mui/material';
+import { Box, Button, Typography, Container, useTheme, useMediaQuery, IconButton, Grid, Chip } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import MovieItem from './Movies/MovieItem';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ const HomePage = () => {
     const [loading, setLoading] = useState(true);
     const [currentSlide, setCurrentSlide] = useState(0);
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md')); // Changed breakpoint check
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -44,7 +44,7 @@ const HomePage = () => {
     const featuredMovie = movies.length > 0 ? movies[currentSlide] : null;
 
     return (
-        <Box width={"100%"} minHeight={"100vh"} bgcolor={"#000000"}>
+        <Box width={"100%"} minHeight={"100vh"} bgcolor={"#000000"} sx={{ overflowX: 'hidden' }}>
             <GlobalLoader open={loading} />
 
             {!loading && featuredMovie && (
@@ -52,9 +52,8 @@ const HomePage = () => {
                     {/* --- HERO SLIDER SECTION --- */}
                     <Box
                         width={"100%"}
-                        height={{ xs: "70vh", md: "90vh" }} // Smaller height on mobile
+                        height={{ xs: "65vh", md: "90vh" }} // Responsive Height
                         position="relative"
-                        sx={{ overflow: 'hidden' }}
                     >
                         {/* Background Image */}
                         <Box
@@ -62,24 +61,24 @@ const HomePage = () => {
                             width={"100%"}
                             height={"100%"}
                             sx={{
-                                backgroundImage: `url(${featuredMovie ? (featuredMovie.featuredUrl || featuredMovie.posterUrl) : 'https://wallpaperaccess.com/full/3658622.jpg'})`,
+                                backgroundImage: `url(${featuredMovie.featuredUrl || featuredMovie.posterUrl})`,
                                 backgroundPosition: 'center top',
                                 backgroundSize: 'cover',
                                 backgroundRepeat: 'no-repeat',
                                 animation: 'fadeIn 1s ease-in-out',
                                 '@keyframes fadeIn': {
-                                    '0%': { opacity: 0.4, transform: 'scale(1.05)' },
-                                    '100%': { opacity: 1, transform: 'scale(1)' },
+                                    '0%': { opacity: 0.6 },
+                                    '100%': { opacity: 1 },
                                 },
                             }}
                         />
 
-                        {/* Stronger Gradient Overlay for Readability */}
+                        {/* Gradient Overlay (Darker at bottom for text readability) */}
                         <Box
                             sx={{
                                 position: 'absolute',
                                 top: 0, left: 0, width: '100%', height: '100%',
-                                background: 'linear-gradient(to top, #000000 5%, rgba(0,0,0,0.9) 25%, rgba(0,0,0,0.1) 100%)'
+                                background: 'linear-gradient(to top, #000 5%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.1) 100%)'
                             }}
                         />
 
@@ -97,37 +96,27 @@ const HomePage = () => {
 
                         {/* Text Content */}
                         <Container
-                            maxWidth="lg"
+                            maxWidth="xl"
                             sx={{
                                 position: "absolute",
                                 top: 0, left: 0, right: 0, bottom: 0,
                                 zIndex: 2,
                                 display: "flex",
                                 flexDirection: "column",
-                                justifyContent: "center",
-                                alignItems: { xs: "center", md: "flex-start" }, // Center on mobile
-                                height: "100%"
+                                justifyContent: "flex-end", // Align text to bottom
+                                alignItems: { xs: "center", md: "flex-start" }, // Center on mobile, Left on desktop
+                                pb: { xs: 8, md: 15 }, // Padding bottom
+                                px: { xs: 2, md: 5 }
                             }}
                         >
-                            <Box maxWidth="700px" sx={{ ml: { xs: 0, md: 4 }, textAlign: { xs: 'center', md: 'left' }, px: 2 }}>
-                                <Typography
-                                    variant="overline"
-                                    color="#e50914"
-                                    fontWeight="bold"
-                                    letterSpacing={2}
+                            <Box maxWidth="800px" sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+                                <Chip
+                                    label={`#${currentSlide + 1} TRENDING`}
                                     sx={{
-                                        mb: 1,
-                                        borderLeft: { xs: 0, md: "4px solid #e50914" },
-                                        pl: { xs: 0, md: 2 },
-                                        background: "rgba(0,0,0,0.6)",
-                                        backdropFilter: "blur(4px)",
-                                        padding: "4px 8px",
-                                        borderRadius: "4px",
-                                        display: "inline-block"
+                                        bgcolor: "#e50914", color: "white", fontWeight: "bold", mb: 2,
+                                        borderRadius: 1, letterSpacing: 1
                                     }}
-                                >
-                                    #{currentSlide + 1} TRENDING
-                                </Typography>
+                                />
 
                                 <Typography
                                     variant={isMobile ? "h4" : "h2"}
@@ -137,8 +126,7 @@ const HomePage = () => {
                                         textTransform: 'uppercase',
                                         lineHeight: 1,
                                         mb: 2,
-                                        textShadow: "0 10px 30px rgba(0,0,0,0.9)",
-                                        fontFamily: "'Poppins', sans-serif"
+                                        textShadow: "0 4px 10px rgba(0,0,0,0.8)",
                                     }}
                                 >
                                     {featuredMovie.title}
@@ -146,17 +134,16 @@ const HomePage = () => {
 
                                 <Typography
                                     variant="h6"
-                                    color="#ccc"
+                                    color="#e0e0e0"
                                     sx={{
-                                        opacity: 0.9,
-                                        mb: 3,
+                                        mb: 4,
+                                        fontWeight: 400,
                                         fontSize: { xs: "0.9rem", md: "1.2rem" },
-                                        fontWeight: 300,
                                         display: '-webkit-box',
                                         overflow: 'hidden',
                                         WebkitBoxOrient: 'vertical',
-                                        WebkitLineClamp: 3,
-                                        fontFamily: "'Poppins', sans-serif"
+                                        WebkitLineClamp: isMobile ? 3 : 2, // Limit lines
+                                        textShadow: "0 2px 5px rgba(0,0,0,0.8)"
                                     }}
                                 >
                                     {featuredMovie.description}
@@ -168,12 +155,9 @@ const HomePage = () => {
                                         variant="contained"
                                         size="large"
                                         sx={{
-                                            bgcolor: "#e50914",
-                                            color: "white",
-                                            fontWeight: 'bold',
-                                            borderRadius: '50px',
-                                            px: 4,
-                                            boxShadow: "0 0 20px rgba(229,9,20,0.6)",
+                                            bgcolor: "#e50914", color: "white", fontWeight: 'bold',
+                                            borderRadius: '50px', px: 4, py: 1.5,
+                                            boxShadow: "0 0 20px rgba(229,9,20,0.5)",
                                             '&:hover': { bgcolor: "#b20710" }
                                         }}
                                         startIcon={<ConfirmationNumberIcon />}
@@ -186,12 +170,10 @@ const HomePage = () => {
                                             variant="outlined"
                                             size="large"
                                             sx={{
-                                                color: "white",
-                                                borderColor: "white",
-                                                fontWeight: 'bold',
-                                                borderRadius: '50px',
-                                                px: 4,
-                                                '&:hover': { borderColor: "#e50914", color: "#e50914" }
+                                                color: "white", borderColor: "rgba(255,255,255,0.6)",
+                                                fontWeight: 'bold', borderRadius: '50px', px: 4,
+                                                backdropFilter: "blur(5px)",
+                                                '&:hover': { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" }
                                             }}
                                             startIcon={<PlayArrowIcon />}
                                         >
@@ -203,23 +185,21 @@ const HomePage = () => {
                         </Container>
                     </Box>
 
-                    {/* --- LATEST RELEASES SECTION (UPDATED FOR RESPONSIVENESS) --- */}
-                    <Container maxWidth="xl" sx={{ paddingY: 8 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom={5} px={2}>
-                            <Typography variant="h4" fontWeight="700" color="white" sx={{ borderLeft: "5px solid #e50914", pl: 2, textShadow: "0 0 10px rgba(255,255,255,0.1)" }}>
+                    {/* --- LATEST RELEASES SECTION --- */}
+                    <Container maxWidth="xl" sx={{ py: 8 }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} px={2}>
+                            <Typography variant={isMobile ? "h5" : "h4"} fontWeight="700" color="white" sx={{ borderLeft: "5px solid #e50914", pl: 2 }}>
                                 Latest Releases
                             </Typography>
                             {!isMobile && (
-                                <Button LinkComponent={Link} to="/movies" sx={{ color: "#e50914", fontWeight: 'bold', fontSize: "1rem" }}>
-                                    View All Movies &rarr;
+                                <Button LinkComponent={Link} to="/movies" sx={{ color: "#e50914", fontWeight: 'bold' }}>
+                                    See All &rarr;
                                 </Button>
                             )}
                         </Box>
 
-                        {/* REPLACED BOX WITH GRID CONTAINER */}
-                        <Grid container spacing={4} justifyContent="center">
+                        <Grid container spacing={3} justifyContent="center">
                             {movies && movies.slice(0, 4).map((movie, index) => (
-                               
                                 <Grid item key={index} xs={12} sm={6} md={3}>
                                     <MovieItem
                                         id={movie._id}
@@ -232,8 +212,8 @@ const HomePage = () => {
                         </Grid>
 
                         {isMobile && (
-                            <Box display="flex" justifyContent="center" marginTop={6}>
-                                <Button LinkComponent={Link} to="/movies" variant='outlined' sx={{ color: "white", borderColor: "white", borderRadius: 20, px: 4 }}>
+                            <Box display="flex" justifyContent="center" mt={4}>
+                                <Button LinkComponent={Link} to="/movies" variant='outlined' sx={{ color: "white", borderColor: "#444", borderRadius: 20, px: 4 }}>
                                     View All Movies
                                 </Button>
                             </Box>
