@@ -1,5 +1,6 @@
 import User from "../models/User.js";
-import Bookings from "../models/Bookings.js";
+import Movie from "../models/Movie.js";
+import Booking from "../models/Bookings.js";
 import bcrypt from "bcryptjs";
 import { sendOtpEmail, sendWelcomeEmail } from "../utils/sendMail.js";
 
@@ -169,7 +170,7 @@ export const getBookingsOfUser = async (req, res, next) => {
     const id = req.params.id;
     let bookings;
     try {
-        bookings = await Bookings.find({ user: id }).populate("movie").populate("show");
+        bookings = await Booking.find({ user: id }).populate("movie").populate("show");
     } catch (err) {
         return console.log(err);
     }
@@ -177,4 +178,66 @@ export const getBookingsOfUser = async (req, res, next) => {
         return res.status(500).json({ message: "Unable to get bookings" });
     }
     res.status(200).json({ bookings });
+};
+// ... imports
+
+export const getUserRecommendations = async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        const userBookings = await Booking.find({ user: userId }).populate("movie");
+
+        // --- 1. COLD START (No History) ---
+        if (!userBookings || userBookings.length === 0) {
+            // Try to find featured movies
+            let defaultRecs = await Movie.find({ featured: true }).limit(4);
+
+            // 🛡️ FALLBACK: If no featured movies, just pick the latest 4 movies
+            if (defaultRecs.length === 0) {
+                defaultRecs = await Movie.find().sort({ releaseDate: -1 }).limit(4);
+            }
+
+            return res.status(200).json({ recommendations: defaultRecs, reason: "Top Picks for You" });
+        }
+
+        // --- 2. HAS HISTORY ---
+        const allGenres = userBookings
+            .filter(b => b.movie) // Filter out deleted movies
+            .map(b => b.movie.genre)
+            .flat();
+
+        if (allGenres.length === 0) {
+            const defaultRecs = await Movie.find().sort({ releaseDate: -1 }).limit(4);
+            return res.status(200).json({ recommendations: defaultRecs, reason: "Trending Now" });
+        }
+
+        const genreCounts = {};
+        allGenres.forEach(genre => {
+            genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+        });
+
+        const topGenres = Object.keys(genreCounts).sort((a, b) => genreCounts[b] - genreCounts[a]).slice(0, 2);
+
+        const bookedMovieIds = userBookings.filter(b => b.movie).map(b => b.movie._id);
+
+        // Find movies with matching genres
+        let recommendations = await Movie.find({
+            genre: { $in: topGenres },
+            _id: { $nin: bookedMovieIds }
+        }).limit(4);
+
+        // 🛡️ FALLBACK: If we couldn't find matching genre movies, show generic ones
+        if (recommendations.length === 0) {
+            recommendations = await Movie.find({ _id: { $nin: bookedMovieIds } }).limit(4);
+        }
+
+        return res.status(200).json({
+            recommendations,
+            reason: `Because you watch ${topGenres.join(" & ")}`
+        });
+
+    } catch (err) {
+        console.error("Recs Error:", err);
+        return res.status(500).json({ message: "Error fetching recommendations" });
+    }
 };

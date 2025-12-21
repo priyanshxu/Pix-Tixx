@@ -3,16 +3,16 @@ import React from 'react';
 import { Link } from "react-router-dom";
 
 const MovieItem = ({ title, releaseDate, posterUrl, id }) => {
+  // 🛡️ SAFE DATE PARSING
+  const dateStr = releaseDate ? new Date(releaseDate).toLocaleDateString() : "Coming Soon";
+
   return (
     <Card
       sx={{
-        // 1. MAKE WIDTH FLUID & CENTERED
-        width: "100%",
-        maxWidth: 280, // Keeps the card from getting too huge on tablets
-        margin: "auto", // Centers the card in its grid cell
+        width: "100%", // Fluid width for grid
+        maxWidth: 280,
+        margin: "auto",
         borderRadius: 5,
-
-        // GLASSMORPHISM STYLES (Kept as is)
         background: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(10px)",
         border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -45,7 +45,7 @@ const MovieItem = ({ title, releaseDate, posterUrl, id }) => {
         </Typography>
 
         <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
-          Release: {new Date(releaseDate).toLocaleDateString()}
+          Release: {dateStr}
         </Typography>
       </CardContent>
 

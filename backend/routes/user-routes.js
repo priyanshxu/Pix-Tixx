@@ -7,7 +7,8 @@ import {
     login,
     signup,
     updateUser,
-    verifySignupOtp
+    verifySignupOtp,
+    getUserRecommendations
 } from "../controllers/user-controller.js";
 
 const userRouter = express.Router();
@@ -24,5 +25,6 @@ userRouter.get("/:id", getUserById);
 
 userRouter.put("/:id", updateUser);
 userRouter.delete("/:id", deleteUser);
+userRouter.get("/recommendations/:id", getUserRecommendations);
 
 export default userRouter;
